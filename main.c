@@ -53,7 +53,7 @@ int is_transparent(int w) {
 void update_matrix_2d(float *matrix) {
     int width, height;
     glfwGetWindowSize(window, &width, &height);
-    glViewport(0, 0, width, height);
+    glViewport(0, 0, width * 2, height * 2);
     mat_ortho(matrix, 0, width, 0, height, -1, 1);
 }
 
@@ -64,7 +64,7 @@ void update_matrix_3d(
     float b[16];
     int width, height;
     glfwGetWindowSize(window, &width, &height);
-    glViewport(0, 0, width, height);
+    glViewport(0, 0, width * 2, height * 2);
     float aspect = (float)width / height;
     mat_identity(a);
     mat_translate(b, -x, -y, -z);
@@ -90,7 +90,7 @@ void update_matrix_item(float *matrix) {
     float b[16];
     int width, height;
     glfwGetWindowSize(window, &width, &height);
-    glViewport(0, 0, width, height);
+    glViewport(0, 0, width * 2, height * 2);
     float aspect = (float)width / height;
     float size = 64;
     float box = height / size / 2;
