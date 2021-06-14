@@ -6,6 +6,8 @@ add_executable(craft main.c db.c map.c noise.c util.c sqlite/sqlite3.c)
 
 add_definitions(-std=c99 -O3)
 
+include_directories(/usr/local/include)
+include_directories(/usr/local/include/GLFW)
 add_subdirectory(glfw)
 include_directories(glfw/include)
 include_directories(sqlite)
