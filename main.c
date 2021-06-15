@@ -61,29 +61,29 @@ void update_matrix_2d(float *matrix) {
 void update_matrix_3d(
     float *matrix, float x, float y, float z, float rx, float ry)
 {
-    float a[16];
-    float b[16];
+    float matrix_a[16];
+    float matrix_b[16];
     int width, height;
     glfwGetWindowSize(window, &width, &height);
     glViewport(0, 0, width * 2, height * 2);
     float aspect = (float)width / height;
-    mat_identity(a);
-    mat_translate(b, -x, -y, -z);
-    mat_multiply(a, b, a);
-    mat_rotate(b, cosf(rx), 0, sinf(rx), ry);
-    mat_multiply(a, b, a);
-    mat_rotate(b, 0, 1, 0, -rx);
-    mat_multiply(a, b, a);
+    matrix_identity(matrix_a);
+    matrix_translate(matrix_b, -x, -y, -z);
+    mat_multiply(matrix_a, matrix_b, matrix_a);
+    matrix_rotate(matrix_b, cosf(rx), 0, sinf(rx), ry);
+    mat_multiply(matrix_a, matrix_b, matrix_a);
+    matrix_rotate(matrix_b, 0, 1, 0, -rx);
+    mat_multiply(matrix_a, matrix_b, matrix_a);
     if (ortho) {
         int size = 32;
-        mat_ortho(b, -size * aspect, size * aspect, -size, size, -256, 256);
+        mat_ortho(matrix_b, -size * aspect, size * aspect, -size, size, -256, 256);
     }
     else {
-        mat_perspective(b, fov, aspect, 0.1, 1024.0);
+        mat_perspective(matrix_b, fov, aspect, 0.1, 1024.0);
     }
-    mat_multiply(a, b, a);
-    mat_identity(matrix);
-    mat_multiply(matrix, a, matrix);
+    mat_multiply(matrix_a, matrix_b, matrix_a);
+    matrix_identity(matrix);
+    mat_multiply(matrix, matrix_a, matrix);
 }
 
 void update_matrix_item(float *matrix) {
@@ -97,16 +97,16 @@ void update_matrix_item(float *matrix) {
     float box = height / size / 2;
     float xoffset = 1 - size / width * 2;
     float yoffset = 1 - size / height * 2;
-    mat_identity(a);
-    mat_rotate(b, 0, 1, 0, PI / 4);
+    matrix_identity(a);
+    matrix_rotate(b, 0, 1, 0, PI / 4);
     mat_multiply(a, b, a);
-    mat_rotate(b, 1, 0, 0, -PI / 10);
+    matrix_rotate(b, 1, 0, 0, -PI / 10);
     mat_multiply(a, b, a);
     mat_ortho(b, -box * aspect, box * aspect, -box, box, -1, 1);
     mat_multiply(a, b, a);
-    mat_translate(b, -xoffset, -yoffset, 0);
+    matrix_translate(b, -xoffset, -yoffset, 0);
     mat_multiply(a, b, a);
-    mat_identity(matrix);
+    matrix_identity(matrix);
     mat_multiply(matrix, a, matrix);
 }
 

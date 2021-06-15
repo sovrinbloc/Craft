@@ -135,12 +135,18 @@ GLuint load_program(const char *path1, const char *path2) {
     return program;
 }
 
+// normalize calculates the unit vector in the same position as
+// the original vector
+//
+// @float *x
+// @float *y
+// @float *z
 void normalize(float *x, float *y, float *z) {
     float d = sqrtf((*x) * (*x) + (*y) * (*y) + (*z) * (*z));
     *x /= d; *y /= d; *z /= d;
 }
 
-void mat_identity(float *matrix) {
+void matrix_identity(float *matrix) {
     matrix[0] = 1;
     matrix[1] = 0;
     matrix[2] = 0;
@@ -159,7 +165,7 @@ void mat_identity(float *matrix) {
     matrix[15] = 1;
 }
 
-void mat_translate(float *matrix, float dx, float dy, float dz) {
+void matrix_translate(float *matrix, float dx, float dy, float dz) {
     matrix[0] = 1;
     matrix[1] = 0;
     matrix[2] = 0;
@@ -178,7 +184,7 @@ void mat_translate(float *matrix, float dx, float dy, float dz) {
     matrix[15] = 1;
 }
 
-void mat_rotate(float *matrix, float x, float y, float z, float angle) {
+void matrix_rotate(float *matrix, float x, float y, float z, float angle) {
     normalize(&x, &y, &z);
     float s = sinf(angle);
     float c = cosf(angle);
@@ -201,23 +207,24 @@ void mat_rotate(float *matrix, float x, float y, float z, float angle) {
     matrix[15] = 1;
 }
 
-void mat_vec_multiply(float *vector, float *a, float *b) {
+void mat_vec_multiply(float *out_vector, float *transform_matrix, float *vector) {
     float result[4];
     for (int i = 0; i < 4; i++) {
         float total = 0;
         for (int j = 0; j < 4; j++) {
             int p = j * 4 + i;
             int q = j;
-            total += a[p] * b[q];
+            total += transform_matrix[p] * vector[q];
         }
         result[i] = total;
     }
     for (int i = 0; i < 4; i++) {
-        vector[i] = result[i];
+        out_vector[i] = result[i];
     }
 }
 
-void mat_multiply(float *matrix, float *a, float *b) {
+// mat_multiply multiples one matrix by another and returns the result
+void mat_multiply(float *out_matrix, float *matrix_a, float *matrix_b) {
     float result[16];
     for (int c = 0; c < 4; c++) {
         for (int r = 0; r < 4; r++) {
@@ -226,41 +233,44 @@ void mat_multiply(float *matrix, float *a, float *b) {
             for (int i = 0; i < 4; i++) {
                 int p = i * 4 + r;
                 int q = c * 4 + i;
-                total += a[p] * b[q];
+                total += matrix_a[p] * matrix_b[q];
             }
             result[index] = total;
         }
     }
     for (int i = 0; i < 16; i++) {
-        matrix[i] = result[i];
+        out_matrix[i] = result[i];
     }
 }
 
 void mat_frustum(
-    float *matrix, float left, float right, float bottom,
-    float top, float znear, float zfar)
+        float *out_matrix, float left, float right, float bottom,
+        float top, float znear_val, float zfar_val)
 {
-    float temp, temp2, temp3, temp4;
-    temp = 2.0 * znear;
-    temp2 = right - left;
-    temp3 = top - bottom;
-    temp4 = zfar - znear;
-    matrix[0] = temp / temp2;
-    matrix[1] = 0.0;
-    matrix[2] = 0.0;
-    matrix[3] = 0.0;
-    matrix[4] = 0.0;
-    matrix[5] = temp / temp3;
-    matrix[6] = 0.0;
-    matrix[7] = 0.0;
-    matrix[8] = (right + left) / temp2;
-    matrix[9] = (top + bottom) / temp3;
-    matrix[10] = (-zfar - znear) / temp4;
-    matrix[11] = -1.0;
-    matrix[12] = 0.0;
-    matrix[13] = 0.0;
-    matrix[14] = (-temp * zfar) / temp4;
-    matrix[15] = 0.0;
+    GLfloat x, y, a, b, c, d;
+    x = (2.0F*znear_val) / (right-left);
+    y = (2.0F*znear_val) / (top-bottom);
+    a = (right+left) / (right-left);
+    b = (top+bottom) / (top-bottom);
+    c = -(zfar_val+znear_val) / ( zfar_val-znear_val);
+    d = -(2.0F*zfar_val*znear_val) / (zfar_val-znear_val);
+
+    out_matrix[0] = x;
+    out_matrix[1] = 0.0;
+    out_matrix[2] = 0.0;
+    out_matrix[3] = 0.0;
+    out_matrix[4] = 0.0;
+    out_matrix[5] = y;
+    out_matrix[6] = 0.0;
+    out_matrix[7] = 0.0;
+    out_matrix[8] = a;
+    out_matrix[9] = b;
+    out_matrix[10] = c;
+    out_matrix[11] = -1.0;
+    out_matrix[12] = 0.0;
+    out_matrix[13] = 0.0;
+    out_matrix[14] = d;
+    out_matrix[15] = 0.0;
 }
 
 void mat_perspective(
@@ -388,7 +398,7 @@ void make_plant(
     // rotate the plant
     float mat[16];
     float vec[4] = {0};
-    mat_rotate(mat, 0, 1, 0, RADIANS(rotation));
+    matrix_rotate(mat, 0, 1, 0, RADIANS(rotation));
     for (int i = 0; i < 24; i++) {
         // vertex
         v = vertex + i * 3;

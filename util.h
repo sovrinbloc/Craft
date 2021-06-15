@@ -32,14 +32,14 @@ GLuint make_program(GLuint shader1, GLuint shader2);
 GLuint load_program(const char *path1, const char *path2);
 
 void normalize(float *x, float *y, float *z);
-void mat_identity(float *matrix);
-void mat_translate(float *matrix, float dx, float dy, float dz);
-void mat_rotate(float *matrix, float x, float y, float z, float angle);
-void mat_vec_multiply(float *vector, float *a, float *b);
-void mat_multiply(float *matrix, float *a, float *b);
+void matrix_identity(float *matrix);
+void matrix_translate(float *matrix, float dx, float dy, float dz);
+void matrix_rotate(float *matrix, float x, float y, float z, float angle);
+void mat_vec_multiply(float *out_vector, float *transform_matrix, float *vector);
+void mat_multiply(float *out_matrix, float *matrix_a, float *matrix_b);
 void mat_frustum(
-    float *matrix, float left, float right, float bottom,
-    float top, float znear, float zfar);
+        float *out_matrix, float left, float right, float bottom,
+        float top, float znear_val, float zfar_val);
 void mat_perspective(
     float *matrix, float fov, float aspect,
     float near, float far);
