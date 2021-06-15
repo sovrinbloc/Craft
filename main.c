@@ -390,6 +390,11 @@ void make_world(Map *map, int p, int q) {
     }
 }
 
+// make_single_cube
+//
+// @var GLuint *position_buffer
+// @var GLuint *normal_buffer
+// @var GLuint *uv_buffer
 void make_single_cube(
     GLuint *position_buffer, GLuint *normal_buffer, GLuint *uv_buffer, int w)
 {
@@ -736,10 +741,10 @@ int main(int argc, char **argv) {
         return -1;
     }
     create_window();
-//    if (window) {
-//        glfwTerminate();
-//        return -1;
-//    }
+    if (!window) {
+        glfwTerminate();
+        return -1;
+    }
     glfwMakeContextCurrent(window);
     glfwSwapInterval(VSYNC);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
