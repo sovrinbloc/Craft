@@ -13,7 +13,8 @@
 #define FULLSCREEN 0
 #define VSYNC 1
 #define SHOW_FPS 0
-#define CHUNK_SIZE 32
+#define MOUSE_POS 1
+#define CHUNK_SIZE 32 // the distance allowed to load blocks (except z?)
 #define MAX_CHUNKS 1024
 #define CREATE_CHUNK_RADIUS 6
 #define RENDER_CHUNK_RADIUS 6
@@ -134,6 +135,7 @@ GLuint make_cube_buffer(float x, float y, float z, float n) {
     return buffer;
 }
 
+// get_sight_vector gets the position of the ray; (-0.000000 169 710800176 -399691872)
 void get_sight_vector(float rx, float ry, float *vx, float *vy, float *vz) {
     float m = cosf(ry);
     *vx = cosf(rx - RADIANS(90)) * m;
@@ -254,6 +256,7 @@ int _hit_test(
     return 0;
 }
 
+// hit_test checks to see if the cursor is close enough to a block, and hitting it.
 int hit_test(
     Chunk *chunks, int chunk_count, int previous,
     float x, float y, float z, float rx, float ry,
@@ -286,6 +289,7 @@ int hit_test(
     return result;
 }
 
+// collide: (collision detection)
 int collide(
     Chunk *chunks, int chunk_count,
     int height, float *x, float *y, float *z)
@@ -442,6 +446,8 @@ void draw_single_cube(
     glDisableVertexAttribArray(uv_loc);
 }
 
+// checks to see if the block itself that you're looking at is
+// transparent
 void exposed_faces(
     Map *map, int x, int y, int z,
     int *f1, int *f2, int *f3, int *f4, int *f5, int *f6)
@@ -617,6 +623,8 @@ void ensure_chunks(Chunk *chunks, int *chunk_count, int p, int q, int force) {
     *chunk_count = count;
 }
 
+/// _set_block checks to see if the chunk exists, and if it does, we update it.
+/// we also update it in the database.
 void _set_block(
     Chunk *chunks, int chunk_count,
     int p, int q, int x, int y, int z, int w)
@@ -630,10 +638,13 @@ void _set_block(
     db_insert_block(p, q, x, y, z, w);
 }
 
+// adds a block
 void set_block(Chunk *chunks, int chunk_count, int x, int y, int z, int w) {
     int p = floorf((float)x / CHUNK_SIZE);
     int q = floorf((float)z / CHUNK_SIZE);
     _set_block(chunks, chunk_count, p, q, x, y, z, w);
+    printf("_set_blocks(%d %d %d %d %d %d %d)\n", chunk_count, p, q, x, y, z, w);
+
     w = w ? -1 : 0;
     int p0 = x == p * CHUNK_SIZE;
     int q0 = z == q * CHUNK_SIZE;
@@ -647,6 +658,7 @@ void set_block(Chunk *chunks, int chunk_count, int x, int y, int z, int w) {
             if (dq < 0 && !q0) continue;
             if (dq > 0 && !q1) continue;
             _set_block(chunks, chunk_count, p + dp, q + dq, x, y, z, w);
+            printf("_set_blocks(%d %d %d %d %d %d %d)\n", chunk_count, p + dp, q + dq, x, y, z, w);
         }
     }
 }
@@ -714,7 +726,7 @@ void create_window() {
         width = modes[mode_count - 1].width;
         height = modes[mode_count - 1].height;
     }
-    window = glfwCreateWindow(width, height, "Craft", monitor, NULL);
+    window = glfwCreateWindow(width, height, "GodRings", monitor, NULL);
 }
 
 int main(int argc, char **argv) {
@@ -724,10 +736,10 @@ int main(int argc, char **argv) {
         return -1;
     }
     create_window();
-    if (!window) {
-        glfwTerminate();
-        return -1;
-    }
+//    if (window) {
+//        glfwTerminate();
+//        return -1;
+//    }
     glfwMakeContextCurrent(window);
     glfwSwapInterval(VSYNC);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -764,10 +776,31 @@ int main(int argc, char **argv) {
 
     GLuint block_program = load_program(
         "shaders/block_vertex.glsl", "shaders/block_fragment.glsl");
+
+    // glGetUniformLocation
+    //
+    // https://www.khronos.org/opengl/wiki/Uniform_(GLSL)
+    // https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glUniform.xhtml
+    //
+    // glGetUniformLocation gets the location of the uniform variable.
+    // This location value can then be passed to glUniform to set the
+    // value of the uniform variable or to glGetUniform in order to
+    // query the current value of the uniform variable. You can set it
+    // with this value using glUniform[0-4][i,f,ui,fv,iv,uiv...]
     GLuint matrix_loc = glGetUniformLocation(block_program, "matrix");
     GLuint camera_loc = glGetUniformLocation(block_program, "camera");
     GLuint sampler_loc = glGetUniformLocation(block_program, "sampler");
     GLuint timer_loc = glGetUniformLocation(block_program, "timer");
+    // glGetAttribLocation
+    //
+    // https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glGetAttribLocation.xhtml
+    //
+    // returns the index of the generic vertex attribute that is bound
+    // to that attribute variable.
+    //
+    // After a program object has been linked successfully, the index
+    // values for attribute variables remain fixed until the next link
+    // command occurs.
     GLuint position_loc = glGetAttribLocation(block_program, "position");
     GLuint normal_loc = glGetAttribLocation(block_program, "normal");
     GLuint uv_loc = glGetAttribLocation(block_program, "uv");
@@ -807,6 +840,7 @@ int main(int argc, char **argv) {
     glfwGetCursorPos(window, &px, &py);
     double previous = glfwGetTime();
     while (!glfwWindowShouldClose(window)) {
+        // fps
         update_fps(&fps, SHOW_FPS);
         double now = glfwGetTime();
         double dt = MIN(now - previous, 0.2);
@@ -841,6 +875,7 @@ int main(int argc, char **argv) {
             {
                 if (hy > 0) {
                     set_block(chunks, chunk_count, hx, hy, hz, 0);
+                    printf("%d %d %d %d %d\n", chunk_count, hx, hy, hz, 0);
                 }
             }
         }
@@ -853,6 +888,7 @@ int main(int argc, char **argv) {
             if (is_obstacle(hw)) {
                 if (!player_intersects_block(2, x, y, z, hx, hy, hz)) {
                     set_block(chunks, chunk_count, hx, hy, hz, block_type);
+                    printf("%d %d %d %d %d\n", chunk_count, hx, hy, hz, block_type);
                 }
             }
         }
@@ -939,6 +975,12 @@ int main(int argc, char **argv) {
         // render focused block wireframe
         int hx, hy, hz;
         int hw = hit_test(chunks, chunk_count, 0, x, y, z, rx, ry, &hx, &hy, &hz);
+        printf("hit_test without clicking(%d %f %f %f %f %f %f %d %d %d) \n",
+               chunks->map.data->w,
+               chunks->map.data->x,
+               chunks->map.data->y,
+               chunks->map.data->z,
+               chunk_count, 0, x, y, z, rx, ry, hx, hy, hz);
         if (is_obstacle(hw)) {
             glUseProgram(line_program);
             glLineWidth(1);

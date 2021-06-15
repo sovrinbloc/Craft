@@ -48,6 +48,13 @@ GLuint make_buffer(GLenum target, GLsizei size, const void *data) {
     return buffer;
 }
 
+// make_shader compiles the input source file
+//
+// @var GLenum type (GL_FRAGMENT_SHADER, GL_VERTEX_SHADER) shader type
+// @var char *source Filesystem Location
+//
+// @return shader: the value from which the shader can be referenced inside the GPU
+// https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glShaderSource.xhtml
 GLuint make_shader(GLenum type, const char *source) {
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, NULL);
@@ -65,6 +72,13 @@ GLuint make_shader(GLenum type, const char *source) {
     return shader;
 }
 
+// load_shader loads the data from the filepath
+// and sends it off to be compiled and stored
+//
+// @var GLenum type : (GL_VERTEX_SHADER, GL_FRAGMENT_SHADER) Shader Type
+// @var char *path : source file location
+//
+// @return result : location of the shader to be referenced in the GPU
 GLuint load_shader(GLenum type, const char *path) {
     char *data = load_file(path);
     GLuint result = make_shader(type, data);
@@ -72,11 +86,22 @@ GLuint load_shader(GLenum type, const char *path) {
     return result;
 }
 
+// attach the shader to OpenGL. if fails, return error message
+// now they are in the GPU, so they can be deleted from memory
+//
+// @var GLuint shader1
+// @var GLuint shader2
+//
+// @var GLuint program | the reference to the program on the GPU
+//
+// https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glCreateProgram.xhtml
+// https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glAttachShader.xhtml
+// https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glLinkProgram.xhtml
 GLuint make_program(GLuint shader1, GLuint shader2) {
     GLuint program = glCreateProgram();
-    glAttachShader(program, shader1);
-    glAttachShader(program, shader2);
-    glLinkProgram(program);
+    glAttachShader(program, shader1); // attach the compiled shader to the program
+    glAttachShader(program, shader2); // attach the compiled shader to the program
+    glLinkProgram(program); // link the program to OpenGL (GPU)
     GLint status;
     glGetProgramiv(program, GL_LINK_STATUS, &status);
     if (status == GL_FALSE) {
@@ -87,6 +112,8 @@ GLuint make_program(GLuint shader1, GLuint shader2) {
         fprintf(stderr, "glLinkProgram failed: %s\n", info);
         free(info);
     }
+
+    // delet the programs and shaders from memory
     glDetachShader(program, shader1);
     glDetachShader(program, shader2);
     glDeleteShader(shader1);
@@ -94,6 +121,13 @@ GLuint make_program(GLuint shader1, GLuint shader2) {
     return program;
 }
 
+// load_program loads the shaders, compiles the shaders,
+// stores the shaders, and returns the program for Vertex and Fragment
+//
+// @var char *path1 | the file location to the shader
+// @var char *path2 | the file location to the shader
+//
+// @return GLuint program | return the reference to the shader program
 GLuint load_program(const char *path1, const char *path2) {
     GLuint shader1 = load_shader(GL_VERTEX_SHADER, path1);
     GLuint shader2 = load_shader(GL_FRAGMENT_SHADER, path2);
@@ -587,6 +621,17 @@ void load_png_texture(const char *file_name) {
         return;
     }
 
+    /* Create and initialize the png_struct
+     * with the desired error handler
+     * functions.  If you want to use the
+     * default stderr and longjump method,
+     * you can supply NULL for the last
+     * three parameters.  We also supply the
+     * the compiler header file version, so
+     * that we know if the application
+     * was compiled with a compatible version
+     * of the library.  REQUIRED
+     */
     png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     if (!png_ptr) {
         fprintf(stderr, "error: png_create_read_struct returned 0.\n");
@@ -594,6 +639,8 @@ void load_png_texture(const char *file_name) {
         return;
     }
 
+    /* Allocate/initialize the memory
+     * for image information.  REQUIRED. */
     // create png info struct
     png_infop info_ptr = png_create_info_struct(png_ptr);
     if (!info_ptr) {
@@ -603,6 +650,15 @@ void load_png_texture(const char *file_name) {
         return;
     }
 
+    /* Set error handling if you are
+     * using the setjmp/longjmp method
+     * (this is the normal method of
+     * doing things with libpng).
+     * REQUIRED unless you  set up
+     * your own error handlers in
+     * the png_create_read_struct()
+     * earlier.
+     */
     // create png info struct
     png_infop end_info = png_create_info_struct(png_ptr);
     if (!end_info) {
@@ -621,9 +677,13 @@ void load_png_texture(const char *file_name) {
     }
 
     // init png reading
+    /* Set up the output control if
+     * you are using standard C streams */
     png_init_io(png_ptr, fp);
 
     // let libpng know you already read the first 8 bytes
+    /* If we have already
+     * read some of the signature */
     png_set_sig_bytes(png_ptr, 8);
 
     // read all the info up to the image data
@@ -634,6 +694,25 @@ void load_png_texture(const char *file_name) {
     png_uint_32 width, height;
 
     // get info about png
+    /*
+     * If you have enough memory to read
+     * in the entire image at once, and
+     * you need to specify only
+     * transforms that can be controlled
+     * with one of the PNG_TRANSFORM_*
+     * bits (this presently excludes
+     * dithering, filling, setting
+     * background, and doing gamma
+     * adjustment), then you can read the
+     * entire image (including pixels)
+     * into the info structure with this
+     * call
+     *
+     * PNG_TRANSFORM_STRIP_16 |
+     * PNG_TRANSFORM_PACKING  forces 8 bit
+     * PNG_TRANSFORM_EXPAND forces to
+     *  expand a palette into RGB
+     */
     png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, NULL, NULL, NULL);
 
     if (bit_depth != 8) {
@@ -684,18 +763,27 @@ void load_png_texture(const char *file_name) {
 
     // set the individual row_pointers to point at the correct offsets of image_data
     for (unsigned int i = 0; i < height; i++) {
+        // note that png is ordered top to
+        // bottom, but OpenGL expect it bottom to top
+        // so the order or swapped
         row_pointers[height - 1 - i] = image_data + i * rowbytes;
     }
 
     // read the png into image_data through row_pointers
+    /* Clean up after the read,
+     * and free any memory allocated */
     png_read_image(png_ptr, row_pointers);
 
     // submit the texture data
     glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, image_data);
 
     // clean up
+    /* Clean up after the read,
+     * and free any memory allocated */
     png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
     free(image_data);
     free(row_pointers);
+
+    /* Close the file */
     fclose(fp);
 }
