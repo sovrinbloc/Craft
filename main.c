@@ -29,6 +29,20 @@ static int block_type = 1;
 static int ortho = 0;
 static float fov = 65.0;
 
+// buffer objects
+// object that stores unformatted, allocated memory (GPU)
+// such as vertex data, pixel data, data retrieved by images,
+// or the framebuffer
+//
+// @var uv_coords_buffer
+// When texturing a mesh, you need a way to tell to OpenGL which part of the image has to be used for each triangle. This is done with UV coordinates.
+// Each vertex can have, on top of its position, a couple of floats, U and V. These coordinates are used to access the texture, in the following way :
+// http://www.opengl-tutorial.org/assets/images/tuto-5-textured-cube/UVintro.png
+//
+// @var position_buffer
+// @var normal_buffer
+// whatis: A chunk is a 256-block tall, 16×16 segment of a world (256x16x16).
+//  Chunks are the method used by the world generator to divide maps into manageable pieces.
 typedef struct {
     Map map;
     int p;
@@ -36,7 +50,7 @@ typedef struct {
     int faces;
     GLuint position_buffer;
     GLuint normal_buffer;
-    GLuint uv_buffer;
+    GLuint uv_coords_buffer; // storing texture coordinates
 } Chunk;
 
 int is_plant(int w) {
@@ -394,7 +408,7 @@ void make_world(Map *map, int p, int q) {
 //
 // @var GLuint *position_buffer
 // @var GLuint *normal_buffer
-// @var GLuint *uv_buffer
+// @var GLuint *uv_coords_buffer
 void make_single_cube(
     GLuint *position_buffer, GLuint *normal_buffer, GLuint *uv_buffer, int w)
 {
@@ -471,7 +485,7 @@ void update_chunk(Chunk *chunk) {
     if (chunk->faces) {
         glDeleteBuffers(1, &chunk->position_buffer);
         glDeleteBuffers(1, &chunk->normal_buffer);
-        glDeleteBuffers(1, &chunk->uv_buffer);
+        glDeleteBuffers(1, &chunk->uv_coords_buffer);
     }
 
     int faces = 0;
@@ -548,7 +562,7 @@ void update_chunk(Chunk *chunk) {
     chunk->faces = faces;
     chunk->position_buffer = position_buffer;
     chunk->normal_buffer = normal_buffer;
-    chunk->uv_buffer = uv_buffer;
+    chunk->uv_coords_buffer = uv_buffer;
 }
 
 void make_chunk(Chunk *chunk, int p, int q) {
@@ -572,7 +586,7 @@ void draw_chunk(
     glVertexAttribPointer(position_loc, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glBindBuffer(GL_ARRAY_BUFFER, chunk->normal_buffer);
     glVertexAttribPointer(normal_loc, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glBindBuffer(GL_ARRAY_BUFFER, chunk->uv_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, chunk->uv_coords_buffer);
     glVertexAttribPointer(uv_loc, 2, GL_FLOAT, GL_FALSE, 0, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glDrawArrays(GL_TRIANGLES, 0, chunk->faces * 6);
@@ -590,6 +604,15 @@ void draw_lines(GLuint buffer, GLuint position_loc, int size, int count) {
     glDisableVertexAttribArray(position_loc);
 }
 
+// ensure_chunks
+//
+// @var Chunk *chunks[MAX_CHUNKS] : (the point to the chunks variable)
+// @var int *chunk_count : the amount of current chunks already created
+// @var int p : the position x of the person divided by max chunks :
+//  floorf(roundf(char_x) / CHUNK_SIZE)
+// @var int q : the position x of the person divided by max chunks :
+//  floorf(roundf(char_z) / CHUNK_SIZE)
+// @var int force : todo: figure out what this it
 void ensure_chunks(Chunk *chunks, int *chunk_count, int p, int q, int force) {
     int count = *chunk_count;
     for (int i = 0; i < count; i++) {
@@ -598,7 +621,7 @@ void ensure_chunks(Chunk *chunks, int *chunk_count, int p, int q, int force) {
             map_free(&chunk->map);
             glDeleteBuffers(1, &chunk->position_buffer);
             glDeleteBuffers(1, &chunk->normal_buffer);
-            glDeleteBuffers(1, &chunk->uv_buffer);
+            glDeleteBuffers(1, &chunk->uv_coords_buffer);
             Chunk *other = chunks + (count - 1);
             chunk->map = other->map;
             chunk->p = other->p;
@@ -606,15 +629,17 @@ void ensure_chunks(Chunk *chunks, int *chunk_count, int p, int q, int force) {
             chunk->faces = other->faces;
             chunk->position_buffer = other->position_buffer;
             chunk->normal_buffer = other->normal_buffer;
-            chunk->uv_buffer = other->uv_buffer;
+            chunk->uv_coords_buffer = other->uv_coords_buffer;
             count--;
         }
     }
     int n = CREATE_CHUNK_RADIUS;
+    // whatis: this appears to create a square of chunks around the
+    //  location of the character (area X x Z)
     for (int i = -n; i <= n; i++) {
         for (int j = -n; j <= n; j++) {
-            int a = p + i;
-            int b = q + j;
+            int a = p + i; // a = (floorf(roundf(char_x) / 1024) + i, 0 / 1024 + 0: 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1
+            int b = q + j; // b = (floorf(roundf(char_z) / 1024) + j, 0 / 1024 + 0: 0, 1, 2, 3, 4 ,5, 0, 1, 2, 3, 4 ,5
             if (!find_chunk(chunks, count, a, b)) {
                 make_chunk(chunks + count, a, b);
                 count++;
@@ -741,10 +766,10 @@ int main(int argc, char **argv) {
         return -1;
     }
     create_window();
-    if (!window) {
-        glfwTerminate();
-        return -1;
-    }
+//    if (!window) {
+//        glfwTerminate();
+//        return -1;
+//    }
     glfwMakeContextCurrent(window);
     glfwSwapInterval(VSYNC);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -779,9 +804,12 @@ int main(int argc, char **argv) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     load_png_texture("texture.png");
 
+    // whatis: this loads the following shaders and then defines variables to
+    //  reference the uniform and regular variables in the shader
     GLuint block_program = load_program(
         "shaders/block_vertex.glsl", "shaders/block_fragment.glsl");
 
+    // whatis: the following is the defining of the variables to be used in the shader
     // glGetUniformLocation
     //
     // https://www.khronos.org/opengl/wiki/Uniform_(GLSL)
@@ -792,6 +820,7 @@ int main(int argc, char **argv) {
     // value of the uniform variable or to glGetUniform in order to
     // query the current value of the uniform variable. You can set it
     // with this value using glUniform[0-4][i,f,ui,fv,iv,uiv...]
+    // whatis: gets the uniform variables in the shader program for querying and mod'ng later
     GLuint matrix_loc = glGetUniformLocation(block_program, "matrix");
     GLuint camera_loc = glGetUniformLocation(block_program, "camera");
     GLuint sampler_loc = glGetUniformLocation(block_program, "sampler");
@@ -806,10 +835,13 @@ int main(int argc, char **argv) {
     // After a program object has been linked successfully, the index
     // values for attribute variables remain fixed until the next link
     // command occurs.
+    // whatis: gets the attribute (variable positions), for reference
+    // todo: figure out if these can be changed after compiling shader
     GLuint position_loc = glGetAttribLocation(block_program, "position");
     GLuint normal_loc = glGetAttribLocation(block_program, "normal");
     GLuint uv_loc = glGetAttribLocation(block_program, "uv");
 
+    // whatis: this loads the next shader and defines the uniforms within it
     GLuint line_program = load_program(
         "shaders/line_vertex.glsl", "shaders/line_fragment.glsl");
     GLuint line_matrix_loc = glGetUniformLocation(line_program, "matrix");
@@ -817,32 +849,42 @@ int main(int argc, char **argv) {
 
     GLuint item_position_buffer = 0;
     GLuint item_normal_buffer = 0;
-    GLuint item_uv_buffer = 0;
+    GLuint item_uv_buffer = 0; // texture corrdinates UxV = XxY (coords)
     int previous_block_type = 0;
 
     Chunk chunks[MAX_CHUNKS];
     int chunk_count = 0;
 
+    // whatis: this defines the character positioning, as well as the mouse
+    //  positioning, loads the position from db (if applicable)
     FPS fps = {0, 0};
     float matrix[16];
-    float x = (rand_double() - 0.5) * 10000;
-    float z = (rand_double() - 0.5) * 10000;
-    float y = 0;
-    float dy = 0;
-    float rx = 0;
-    float ry = 0;
-    double px = 0;
-    double py = 0;
+    float char_x = (rand_double() - 0.5) * 10000; // char_x position of character
+    float char_z = (rand_double() - 0.5) * 10000; // char_z position of character
+    float char_y = 0; // char_y position of the character
+    float dy = 0; // jumping position
+    float rx = 0; // horizontal rotation (mouse)
+    float ry = 0; // vertical rotation (mouse)
+    double px = 0; // mouse position (x)
+    double py = 0; // mouse position (y)
 
-    int loaded = db_load_state(&x, &y, &z, &rx, &ry);
+    // whatis: loads the state of the character in char_x, char_y, char_z positioning
+    int loaded = db_load_state(&char_x, &char_y, &char_z, &rx, &ry); // character position, and mouse position
+
+    // whatis: rounds the location of the character to ensure the blocks remain snapped in place
+    //  it looks to see if any of the chunks have loaded, and if not, it generates the chunks
+    //  relative to the character
     ensure_chunks(chunks, &chunk_count,
-        floorf(roundf(x) / CHUNK_SIZE),
-        floorf(roundf(z) / CHUNK_SIZE), 1);
+                  floorf(roundf(char_x) / CHUNK_SIZE), // https://rocmdocs.amd.com/en/latest/Programming_Guides/HIP-GUIDE.html
+                  floorf(roundf(char_z) / CHUNK_SIZE), 1);
     if (!loaded) {
-        y = highest_block(chunks, chunk_count, x, z) + 2;
+        char_y = highest_block(chunks, chunk_count, char_x, char_z) + 2;
     }
 
+    // returns the position of the cursor, in screen coordinates,
+    // relative to the upper-left corner of the content area
     glfwGetCursorPos(window, &px, &py);
+
     double previous = glfwGetTime();
     while (!glfwWindowShouldClose(window)) {
         // fps
@@ -853,7 +895,7 @@ int main(int argc, char **argv) {
 
         if (exclusive && (px || py)) {
             double mx, my;
-            glfwGetCursorPos(window, &mx, &my);
+            glfwGetCursorPos(window, &mx, &my); // returns position of cursor relative to window
             float m = 0.0025;
             rx += (mx - px) * m;
             ry -= (my - py) * m;
@@ -875,8 +917,8 @@ int main(int argc, char **argv) {
         if (left_click) {
             left_click = 0;
             int hx, hy, hz;
-            if (hit_test(chunks, chunk_count, 0, x, y, z, rx, ry,
-                &hx, &hy, &hz))
+            if (hit_test(chunks, chunk_count, 0, char_x, char_y, char_z, rx, ry,
+                         &hx, &hy, &hz))
             {
                 if (hy > 0) {
                     set_block(chunks, chunk_count, hx, hy, hz, 0);
@@ -888,10 +930,10 @@ int main(int argc, char **argv) {
         if (right_click) {
             right_click = 0;
             int hx, hy, hz;
-            int hw = hit_test(chunks, chunk_count, 1, x, y, z, rx, ry,
-                &hx, &hy, &hz);
+            int hw = hit_test(chunks, chunk_count, 1, char_x, char_y, char_z, rx, ry,
+                              &hx, &hy, &hz);
             if (is_obstacle(hw)) {
-                if (!player_intersects_block(2, x, y, z, hx, hy, hz)) {
+                if (!player_intersects_block(2, char_x, char_y, char_z, hx, hy, hz)) {
                     set_block(chunks, chunk_count, hx, hy, hz, block_type);
                     printf("%d %d %d %d %d\n", chunk_count, hx, hy, hz, block_type);
                 }
@@ -944,26 +986,26 @@ int main(int argc, char **argv) {
                 dy -= ut * 25;
                 dy = MAX(dy, -250);
             }
-            x += vx;
-            y += vy + dy * ut;
-            z += vz;
-            if (collide(chunks, chunk_count, 2, &x, &y, &z)) {
+            char_x += vx;
+            char_y += vy + dy * ut;
+            char_z += vz;
+            if (collide(chunks, chunk_count, 2, &char_x, &char_y, &char_z)) {
                 dy = 0;
             }
         }
 
-        int p = floorf(roundf(x) / CHUNK_SIZE);
-        int q = floorf(roundf(z) / CHUNK_SIZE);
+        int p = floorf(roundf(char_x) / CHUNK_SIZE);
+        int q = floorf(roundf(char_z) / CHUNK_SIZE);
         ensure_chunks(chunks, &chunk_count, p, q, 0);
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        update_matrix_3d(matrix, x, y, z, rx, ry);
+        update_matrix_3d(matrix, char_x, char_y, char_z, rx, ry);
 
         // render chunks
         glUseProgram(block_program);
         glUniformMatrix4fv(matrix_loc, 1, GL_FALSE, matrix);
-        glUniform3f(camera_loc, x, y, z);
+        glUniform3f(camera_loc, char_x, char_y, char_z);
         glUniform1i(sampler_loc, 0);
         glUniform1f(timer_loc, glfwGetTime());
         for (int i = 0; i < chunk_count; i++) {
@@ -979,13 +1021,13 @@ int main(int argc, char **argv) {
 
         // render focused block wireframe
         int hx, hy, hz;
-        int hw = hit_test(chunks, chunk_count, 0, x, y, z, rx, ry, &hx, &hy, &hz);
+        int hw = hit_test(chunks, chunk_count, 0, char_x, char_y, char_z, rx, ry, &hx, &hy, &hz);
         printf("hit_test without clicking(%d %f %f %f %f %f %f %d %d %d) \n",
                chunks->map.data->w,
                chunks->map.data->x,
                chunks->map.data->y,
                chunks->map.data->z,
-               chunk_count, 0, x, y, z, rx, ry, hx, hy, hz);
+               chunk_count, 0, char_x, char_y, char_z, rx, ry, hx, hy, hz);
         if (is_obstacle(hw)) {
             glUseProgram(line_program);
             glLineWidth(1);
@@ -1031,7 +1073,7 @@ int main(int argc, char **argv) {
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-    db_save_state(x, y, z, rx, ry);
+    db_save_state(char_x, char_y, char_z, rx, ry);
     db_close();
     glfwTerminate();
     return 0;
