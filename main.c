@@ -19,6 +19,10 @@
 #define CREATE_CHUNK_RADIUS 6
 #define RENDER_CHUNK_RADIUS 6
 #define DELETE_CHUNK_RADIUS 8
+#define REMOVE_BLOCK 0
+
+// good source of information
+// https://github.com/Pannoniae/MeinKraft
 
 static GLFWwindow *window;
 static int exclusive = 1;
@@ -39,6 +43,10 @@ static float fov = 65.0;
 // Each vertex can have, on top of its position, a couple of floats, U and V. These coordinates are used to access the texture, in the following way :
 // http://www.opengl-tutorial.org/assets/images/tuto-5-textured-cube/UVintro.png
 //
+// @var int p : the position x of the person divided by max chunks :
+//  floorf(roundf(char_x) / CHUNK_SIZE)
+// @var int q : the position x of the person divided by max chunks :
+//  floorf(roundf(char_z) / CHUNK_SIZE)
 // @var position_buffer
 // @var normal_buffer
 // whatis: A chunk is a 256-block tall, 16×16 segment of a world (256x16x16).
@@ -149,12 +157,32 @@ GLuint make_cube_buffer(float x, float y, float z, float n) {
     return buffer;
 }
 
-// get_sight_vector gets the position of the ray; (-0.000000 169 710800176 -399691872)
-void get_sight_vector(float rx, float ry, float *vx, float *vy, float *vz) {
-    float m = cosf(ry);
-    *vx = cosf(rx - RADIANS(90)) * m;
-    *vy = sinf(ry);
-    *vz = sinf(rx - RADIANS(90)) * m;
+// get_sight_vector
+// Returns the current line of sight vector indicating the direction
+//        the player is looking
+// (-0.000000 169 710800176 -399691872)
+//
+// @var float rx rotation axis x
+// @var float ry rotation axis y
+// @var float dx vector x
+// @var float dy vector y
+// @var float dz vector z
+// whatis: this calculates the sight vector from two coordinates to three
+//   coordinates. I don't really get it, though.
+void get_sight_vector(float rx, float ry, float *dx, float *dy, float *dz) {
+    /**
+     * y ranges from -90 to 90, or -pi/2 to pi/2, so m ranges from 0 to 1 and
+     * is 1 when looking ahead parallel to the ground and 0 when looking
+     * straight up or down.
+     */
+    float m = cosf(ry); //ry = 2; m = -0.41
+    /**
+     * dy ranges from -1 to 1 and is -1 when looking straight down and 1 when
+     * looking straight up.
+     */
+    *dx = cosf(rx - RADIANS(90)) * m; // rx = 2; result = cos(2)sin(2) = -0.38
+    *dy = sinf(ry);
+    *dz = sinf(rx - RADIANS(90)) * m;
 }
 
 void get_motion_vector(int flying, int sz, int sx, float rx, float ry,
@@ -270,18 +298,34 @@ int _hit_test(
     return 0;
 }
 
-// hit_test checks to see if the cursor is close enough to a block, and hitting it.
+// hit_test
+//
+// Line of sight search from current position. If a block is
+//        intersected it is returned, along with the block previously in the line
+//        of sight. If no block is found, return None, None.
+// checks to see if the cursor is close enough to a block, and hitting it.
+//
+// @var char_x (character / camera x coordinates)
+// @var char_y (character / camera y coordinates)
+// @var char_z (character / camera z coordinates)
+// @var rx (horizontal rotation axis -> ray toward X)
+// @var ry (vertical rotation axis -> ray toward Y)
+// @var bx
+// @var by
+// @var bz
 int hit_test(
-    Chunk *chunks, int chunk_count, int previous,
-    float x, float y, float z, float rx, float ry,
-    int *bx, int *by, int *bz)
+        Chunk *chunks, int chunk_count, int previous,
+        float char_x, float char_y, float char_z, float rx, float ry,
+        int *bx, int *by, int *bz)
 {
     int result = 0;
     float best = 0;
-    int p = floorf(roundf(x) / CHUNK_SIZE);
-    int q = floorf(roundf(z) / CHUNK_SIZE);
-    float vx, vy, vz;
-    get_sight_vector(rx, ry, &vx, &vy, &vz);
+    int p = floorf(roundf(char_x) / CHUNK_SIZE);
+    int q = floorf(roundf(char_z) / CHUNK_SIZE);
+    float dx, dy, dz;
+
+    // todo: figure out how this works
+    get_sight_vector(rx, ry, &dx, &dy, &dz);
     for (int i = 0; i < chunk_count; i++) {
         Chunk *chunk = chunks + i;
         if (chunk_distance(chunk, p, q) > 1) {
@@ -289,10 +333,10 @@ int hit_test(
         }
         int hx, hy, hz;
         int hw = _hit_test(&chunk->map, 8, previous,
-            x, y, z, vx, vy, vz, &hx, &hy, &hz);
+                           char_x, char_y, char_z, dx, dy, dz, &hx, &hy, &hz);
         if (hw > 0) {
             float d = sqrtf(
-                powf(hx - x, 2) + powf(hy - y, 2) + powf(hz - z, 2));
+                    powf(hx - char_x, 2) + powf(hy - char_y, 2) + powf(hz - char_z, 2));
             if (best == 0 || d < best) {
                 best = d;
                 *bx = hx; *by = hy; *bz = hz;
@@ -465,8 +509,9 @@ void draw_single_cube(
     glDisableVertexAttribArray(uv_loc);
 }
 
-// checks to see if the block itself that you're looking at is
-// transparent
+// exposed_faces
+// returns false if the given position is surrounded on all sides
+// by blocks. True, otherwise.
 void exposed_faces(
     Map *map, int x, int y, int z,
     int *f1, int *f2, int *f3, int *f4, int *f5, int *f6)
@@ -633,15 +678,15 @@ void ensure_chunks(Chunk *chunks, int *chunk_count, int p, int q, int force) {
             count--;
         }
     }
-    int n = CREATE_CHUNK_RADIUS;
+    int n = CREATE_CHUNK_RADIUS; // radius is 6 chunks
     // whatis: this appears to create a square of chunks around the
     //  location of the character (area X x Z)
     for (int i = -n; i <= n; i++) {
         for (int j = -n; j <= n; j++) {
-            int a = p + i; // a = (floorf(roundf(char_x) / 1024) + i, 0 / 1024 + 0: 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1
-            int b = q + j; // b = (floorf(roundf(char_z) / 1024) + j, 0 / 1024 + 0: 0, 1, 2, 3, 4 ,5, 0, 1, 2, 3, 4 ,5
-            if (!find_chunk(chunks, count, a, b)) {
-                make_chunk(chunks + count, a, b);
+            int x_char_chunk = p + i; // x_char_chunk = (floorf(roundf(char_x) / 32) + i, 0 / 32 + 0: 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1
+            int z_char_chunk = q + j; // z_char_chunk = (floorf(roundf(char_z) / 32) + j, 0 / 32 + 0: 0, 1, 2, 3, 4 ,5, 0, 1, 2, 3, 4 ,5
+            if (!find_chunk(chunks, count, x_char_chunk, z_char_chunk)) {
+                make_chunk(chunks + count, x_char_chunk, z_char_chunk);
                 count++;
                 if (!force) {
                     *chunk_count = count;
@@ -657,25 +702,25 @@ void ensure_chunks(Chunk *chunks, int *chunk_count, int p, int q, int force) {
 /// we also update it in the database.
 void _set_block(
     Chunk *chunks, int chunk_count,
-    int p, int q, int x, int y, int z, int w)
+    int p, int q, int x, int y, int z, int texture)
 {
     Chunk *chunk = find_chunk(chunks, chunk_count, p, q);
     if (chunk) {
         Map *map = &chunk->map;
-        map_set(map, x, y, z, w);
+        map_set(map, x, y, z, texture);
         update_chunk(chunk);
     }
-    db_insert_block(p, q, x, y, z, w);
+    db_insert_block(p, q, x, y, z, texture);
 }
 
 // adds a block
-void set_block(Chunk *chunks, int chunk_count, int x, int y, int z, int w) {
+void set_block(Chunk *chunks, int chunk_count, int x, int y, int z, int texture) {
     int p = floorf((float)x / CHUNK_SIZE);
     int q = floorf((float)z / CHUNK_SIZE);
-    _set_block(chunks, chunk_count, p, q, x, y, z, w);
-    printf("_set_blocks(%d %d %d %d %d %d %d)\n", chunk_count, p, q, x, y, z, w);
+    _set_block(chunks, chunk_count, p, q, x, y, z, texture);
+    printf("_set_blocks(%d %d %d %d %d %d %d)\n", chunk_count, p, q, x, y, z, texture);
 
-    w = w ? -1 : 0;
+    texture = texture ? -1 : 0;
     int p0 = x == p * CHUNK_SIZE;
     int q0 = z == q * CHUNK_SIZE;
     int p1 = x == p * CHUNK_SIZE + CHUNK_SIZE - 1;
@@ -687,8 +732,8 @@ void set_block(Chunk *chunks, int chunk_count, int x, int y, int z, int w) {
             if (dp > 0 && !p1) continue;
             if (dq < 0 && !q0) continue;
             if (dq > 0 && !q1) continue;
-            _set_block(chunks, chunk_count, p + dp, q + dq, x, y, z, w);
-            printf("_set_blocks(%d %d %d %d %d %d %d)\n", chunk_count, p + dp, q + dq, x, y, z, w);
+            _set_block(chunks, chunk_count, p + dp, q + dq, x, y, z, texture);
+            printf("_set_blocks(%d %d %d %d %d %d %d)\n", chunk_count, p + dp, q + dq, x, y, z, texture);
         }
     }
 }
@@ -922,7 +967,7 @@ int main(int argc, char **argv) {
             {
                 if (hy > 0) {
                     set_block(chunks, chunk_count, hx, hy, hz, 0);
-                    printf("%d %d %d %d %d\n", chunk_count, hx, hy, hz, 0);
+                    printf("Left Click: %d %d %d %d %d\n", chunk_count, hx, hy, hz, REMOVE_BLOCK);
                 }
             }
         }
@@ -935,7 +980,7 @@ int main(int argc, char **argv) {
             if (is_obstacle(hw)) {
                 if (!player_intersects_block(2, char_x, char_y, char_z, hx, hy, hz)) {
                     set_block(chunks, chunk_count, hx, hy, hz, block_type);
-                    printf("%d %d %d %d %d\n", chunk_count, hx, hy, hz, block_type);
+                    printf("Right Click: %d %d %d %d %d\n", chunk_count, hx, hy, hz, block_type);
                 }
             }
         }
@@ -1022,12 +1067,12 @@ int main(int argc, char **argv) {
         // render focused block wireframe
         int hx, hy, hz;
         int hw = hit_test(chunks, chunk_count, 0, char_x, char_y, char_z, rx, ry, &hx, &hy, &hz);
-        printf("hit_test without clicking(%d %f %f %f %f %f %f %d %d %d) \n",
-               chunks->map.data->w,
-               chunks->map.data->x,
-               chunks->map.data->y,
-               chunks->map.data->z,
-               chunk_count, 0, char_x, char_y, char_z, rx, ry, hx, hy, hz);
+//        printf("hit_test without clicking(%d %f %f %f %f %f %f %d %d %d) \n",
+//               chunks->map.data->w,
+//               chunks->map.data->x,
+//               chunks->map.data->y,
+//               chunks->map.data->z,
+//               chunk_count, 0, char_x, char_y, char_z, rx, ry, hx, hy, hz);
         if (is_obstacle(hw)) {
             glUseProgram(line_program);
             glLineWidth(1);

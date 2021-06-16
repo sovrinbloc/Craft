@@ -30,7 +30,7 @@ void map_free(Map *map) {
 
 void map_grow(Map *map);
 
-void map_set(Map *map, int x, int y, int z, int w) {
+void map_set(Map *map, int x, int y, int z, int block_type) {
     unsigned int index = hash(x, y, z) & map->mask;
     Entry *entry = map->data + index;
     int overwrite = 0;
@@ -43,13 +43,13 @@ void map_set(Map *map, int x, int y, int z, int w) {
         entry = map->data + index;
     }
     if (overwrite) {
-        entry->w = w;
+        entry->w = block_type;
     }
-    else if (w) {
+    else if (block_type) {
         entry->x = x;
         entry->y = y;
         entry->z = z;
-        entry->w = w;
+        entry->w = block_type;
         map->size++;
         if (map->size * 2 > map->mask) {
             map_grow(map);
