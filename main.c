@@ -53,8 +53,8 @@ static int debug_mode = 1;
 //  Chunks are the method used by the world generator to divide maps into manageable pieces.
 typedef struct {
     Map map;
-    int p;
-    int q;
+    int p; // x location on the map
+    int q; // z location on the map
     int faces;
     GLuint position_buffer;
     GLuint normal_buffer;
@@ -81,7 +81,7 @@ void update_matrix_2d(float *matrix) {
 }
 
 void update_matrix_3d(
-    float *matrix, float x, float y, float z, float rx, float ry)
+        float *matrix, float x, float y, float z, float rx, float ry)
 {
     float matrix_a[16];
     float matrix_b[16];
@@ -139,11 +139,11 @@ GLuint make_line_buffer() {
     int y = height / 2;
     int p = 10;
     float data[] = {
-        x, y - p, x, y + p,
-        x - p, y, x + p, y
+            x, y - p, x, y + p,
+            x - p, y, x + p, y
     };
     GLuint buffer = make_buffer(
-        GL_ARRAY_BUFFER, sizeof(data), data
+            GL_ARRAY_BUFFER, sizeof(data), data
     );
     return buffer;
 }
@@ -152,7 +152,7 @@ GLuint make_cube_buffer(float x, float y, float z, float n) {
     float data[144];
     make_cube_wireframe(data, x, y, z, n);
     GLuint buffer = make_buffer(
-        GL_ARRAY_BUFFER, sizeof(data), data
+            GL_ARRAY_BUFFER, sizeof(data), data
     );
     return buffer;
 }
@@ -195,7 +195,7 @@ void get_sight_vector(float rx, float ry, float *dx, float *dy, float *dz) {
 // @var int vy
 // @var int vz
 void get_motion_vector(int flying, int sz, int sx, float rx, float ry,
-    float *vx, float *vy, float *vz) {
+                       float *vx, float *vy, float *vz) {
     *vx = 0; *vy = 0; *vz = 0;
     if (!sz && !sx) {
         return;
@@ -222,16 +222,31 @@ void get_motion_vector(int flying, int sz, int sx, float rx, float ry,
     }
 }
 
-Chunk *find_chunk(Chunk *chunks, int chunk_count, int p, int q) {
+// find_chunk
+// searches through the positioning of the chunks and sees if one already exists
+// and if it does, it returns it (assigns it to the pointer).
+//
+// @var Chunk *chunks
+// @var int chunk_count
+// @var int x_chunk_pos
+// @var int z_chunk_pos
+Chunk *find_chunk(Chunk *chunks, int chunk_count, int x_chunk_pos, int z_chunk_pos) {
     for (int i = 0; i < chunk_count; i++) {
         Chunk *chunk = chunks + i;
-        if (chunk->p == p && chunk->q == q) {
+        if (chunk->p == x_chunk_pos && chunk->q == z_chunk_pos) {
             return chunk;
         }
     }
     return 0;
 }
 
+// chunk_distance
+// gets the max distance between the player's location relative to max chunks,
+// and the input chunk
+//
+// @var Chunk *chunk
+// @var int p Player P
+// @var int q Player Q
 int chunk_distance(Chunk *chunk, int p, int q) {
     int dp = ABS(chunk->p - p);
     int dq = ABS(chunk->q - q);
@@ -243,10 +258,10 @@ int chunk_visible(Chunk *chunk, float *matrix) {
         for (int dq = 0; dq <= 1; dq++) {
             for (int y = 0; y < 128; y += 16) {
                 float vec[4] = {
-                    (chunk->p + dp) * CHUNK_SIZE - dp,
-                    y,
-                    (chunk->q + dq) * CHUNK_SIZE - dq,
-                    1};
+                        (chunk->p + dp) * CHUNK_SIZE - dp,
+                        y,
+                        (chunk->q + dq) * CHUNK_SIZE - dq,
+                        1};
                 mat_vec_multiply(vec, matrix, vec);
                 if (vec[3] >= 0) {
                     return 1;
@@ -261,25 +276,25 @@ int highest_block(Chunk *chunks, int chunk_count, float x, float z) {
     int result = -1;
     int nx = roundf(x);
     int nz = roundf(z);
-    int p = floorf(roundf(x) / CHUNK_SIZE);
-    int q = floorf(roundf(z) / CHUNK_SIZE);
-    Chunk *chunk = find_chunk(chunks, chunk_count, p, q);
+    int x_chunk_pos = floorf(roundf(x) / CHUNK_SIZE);
+    int z_chunk_pos = floorf(roundf(z) / CHUNK_SIZE);
+    Chunk *chunk = find_chunk(chunks, chunk_count, x_chunk_pos, z_chunk_pos);
     if (chunk) {
         Map *map = &chunk->map;
         MAP_FOR_EACH(map, e) {
-            if (is_obstacle(e->w) && e->x == nx && e->z == nz) {
-                result = MAX(result, e->y);
-            }
-        } END_MAP_FOR_EACH;
+                if (is_obstacle(e->w) && e->x == nx && e->z == nz) {
+                    result = MAX(result, e->y);
+                }
+            } END_MAP_FOR_EACH;
     }
     return result;
 }
 
 int _hit_test(
-    Map *map, float max_distance, int previous,
-    float x, float y, float z,
-    float vx, float vy, float vz,
-    int *hx, int *hy, int *hz)
+        Map *map, float max_distance, int previous,
+        float x, float y, float z,
+        float vx, float vy, float vz,
+        int *hx, int *hy, int *hz)
 {
     int m = 8;
     int px = 0;
@@ -358,8 +373,8 @@ int hit_test(
 
 // collide: (collision detection)
 int collide(
-    Chunk *chunks, int chunk_count,
-    int height, float *x, float *y, float *z)
+        Chunk *chunks, int chunk_count,
+        int height, float *x, float *y, float *z)
 {
     int result = 0;
     int p = floorf(roundf(*x) / CHUNK_SIZE);
@@ -402,9 +417,9 @@ int collide(
 }
 
 int player_intersects_block(
-    int height,
-    float x, float y, float z,
-    int hx, int hy, int hz)
+        int height,
+        float x, float y, float z,
+        int hx, int hy, int hz)
 {
     int nx = roundf(x);
     int ny = roundf(y);
@@ -417,29 +432,33 @@ int player_intersects_block(
     return 0;
 }
 
-void make_world(Map *map, int p, int q) {
-    int pad = 1;
-    for (int dx = -pad; dx < CHUNK_SIZE + pad; dx++) {
+void make_world(Map *map, int x_chunk_pos, int z_chunk_pos) {
+    int pad = 1; // todo: figure out what this is. Although I think it means the distance between blocks
+    for (int dx = -pad; dx < CHUNK_SIZE + pad; dx++) { // from -1 to +33?
         for (int dz = -pad; dz < CHUNK_SIZE + pad; dz++) {
-            int x = p * CHUNK_SIZE + dx;
-            int z = q * CHUNK_SIZE + dz;
+            int x = x_chunk_pos * CHUNK_SIZE + dx;
+            int z = z_chunk_pos * CHUNK_SIZE + dz;
+
+            // whatis: perlin noise (generating realistic structures, and textures)
+            //  in this sense it is used to generate the maps.
+            //  https://medium.com/@yvanscher/playing-with-perlin-noise-generating-realistic-archipelagos-b59f004d8401 https://www.engadget.com/2015-03-04-how-minecraft-worlds-are-made.html
             float f = simplex2(x * 0.01, z * 0.01, 4, 0.5, 2);
             float g = simplex2(-x * 0.01, -z * 0.01, 2, 0.9, 2);
-            int mh = g * 32 + 16;
-            int h = f * mh;
-            int w = 1;
+            int mh = g * 32 + 16; // hint: when I lowered this number drastically, it made it so the blocks were lower max height
+            int h = f * mh; // hint: when i multiplied this by 2, it sent me underground
+            int texture = 1; // texture (cube type)
             int t = 12;
             if (h <= t) {
                 h = t;
-                w = 2;
+                texture = 2;
             }
             if (dx < 0 || dz < 0 || dx >= CHUNK_SIZE || dz >= CHUNK_SIZE) {
-                w = -1;
+                texture = -1;
             }
             for (int y = 0; y < h; y++) {
-                map_set(map, x, y, z, w);
+                map_set(map, x, y, z, texture);
             }
-            if (w == 1) {
+            if (texture == 1) {
                 if (simplex2(-x * 0.1, z * 0.1, 4, 0.8, 2) > 0.6) {
                     map_set(map, x, h, z, 17);
                 }
@@ -463,7 +482,7 @@ void make_world(Map *map, int p, int q) {
 // @var GLuint *normal_buffer
 // @var GLuint *uv_coords_buffer
 void make_single_cube(
-    GLuint *position_buffer, GLuint *normal_buffer, GLuint *uv_buffer, int w)
+        GLuint *position_buffer, GLuint *normal_buffer, GLuint *uv_buffer, int w)
 {
     int faces = 6;
     glDeleteBuffers(1, position_buffer);
@@ -473,25 +492,25 @@ void make_single_cube(
     GLfloat *normal_data = malloc(sizeof(GLfloat) * faces * 18);
     GLfloat *uv_data = malloc(sizeof(GLfloat) * faces * 12);
     make_cube(
-        position_data,
-        normal_data,
-        uv_data,
-        1, 1, 1, 1, 1, 1,
-        0, 0, 0, 0.5, w);
+            position_data,
+            normal_data,
+            uv_data,
+            1, 1, 1, 1, 1, 1,
+            0, 0, 0, 0.5, w);
     *position_buffer = make_buffer(
-        GL_ARRAY_BUFFER,
-        sizeof(GLfloat) * faces * 18,
-        position_data
+            GL_ARRAY_BUFFER,
+            sizeof(GLfloat) * faces * 18,
+            position_data
     );
     *normal_buffer = make_buffer(
-        GL_ARRAY_BUFFER,
-        sizeof(GLfloat) * faces * 18,
-        normal_data
+            GL_ARRAY_BUFFER,
+            sizeof(GLfloat) * faces * 18,
+            normal_data
     );
     *uv_buffer = make_buffer(
-        GL_ARRAY_BUFFER,
-        sizeof(GLfloat) * faces * 12,
-        uv_data
+            GL_ARRAY_BUFFER,
+            sizeof(GLfloat) * faces * 12,
+            uv_data
     );
     free(position_data);
     free(normal_data);
@@ -499,8 +518,8 @@ void make_single_cube(
 }
 
 void draw_single_cube(
-    GLuint position_buffer, GLuint normal_buffer, GLuint uv_buffer,
-    GLuint position_loc, GLuint normal_loc, GLuint uv_loc)
+        GLuint position_buffer, GLuint normal_buffer, GLuint uv_buffer,
+        GLuint position_loc, GLuint normal_loc, GLuint uv_loc)
 {
     glEnableVertexAttribArray(position_loc);
     glEnableVertexAttribArray(normal_loc);
@@ -522,8 +541,8 @@ void draw_single_cube(
 // returns false if the given position is surrounded on all sides
 // by blocks. True, otherwise.
 void exposed_faces(
-    Map *map, int x, int y, int z,
-    int *f1, int *f2, int *f3, int *f4, int *f5, int *f6)
+        Map *map, int x, int y, int z,
+        int *f1, int *f2, int *f3, int *f4, int *f5, int *f6)
 {
     *f1 = is_transparent(map_get(map, x - 1, y, z));
     *f2 = is_transparent(map_get(map, x + 1, y, z));
@@ -544,17 +563,17 @@ void update_chunk(Chunk *chunk) {
 
     int faces = 0;
     MAP_FOR_EACH(map, e) {
-        if (e->w <= 0) {
-            continue;
-        }
-        int f1, f2, f3, f4, f5, f6;
-        exposed_faces(map, e->x, e->y, e->z, &f1, &f2, &f3, &f4, &f5, &f6);
-        int total = f1 + f2 + f3 + f4 + f5 + f6;
-        if (is_plant(e->w)) {
-            total = total ? 4 : 0;
-        }
-        faces += total;
-    } END_MAP_FOR_EACH;
+            if (e->w <= 0) {
+                continue;
+            }
+            int f1, f2, f3, f4, f5, f6;
+            exposed_faces(map, e->x, e->y, e->z, &f1, &f2, &f3, &f4, &f5, &f6);
+            int total = f1 + f2 + f3 + f4 + f5 + f6;
+            if (is_plant(e->w)) {
+                total = total ? 4 : 0;
+            }
+            faces += total;
+        } END_MAP_FOR_EACH;
 
     GLfloat *position_data = malloc(sizeof(GLfloat) * faces * 18);
     GLfloat *normal_data = malloc(sizeof(GLfloat) * faces * 18);
@@ -562,52 +581,52 @@ void update_chunk(Chunk *chunk) {
     int position_offset = 0;
     int uv_offset = 0;
     MAP_FOR_EACH(map, e) {
-        if (e->w <= 0) {
-            continue;
-        }
-        int f1, f2, f3, f4, f5, f6;
-        exposed_faces(map, e->x, e->y, e->z, &f1, &f2, &f3, &f4, &f5, &f6);
-        int total = f1 + f2 + f3 + f4 + f5 + f6;
-        if (is_plant(e->w)) {
-            total = total ? 4 : 0;
-        }
-        if (total == 0) {
-            continue;
-        }
-        if (is_plant(e->w)) {
-            float rotation = simplex3(e->x, e->y, e->z, 4, 0.5, 2) * 360;
-            make_plant(
-                position_data + position_offset,
-                normal_data + position_offset,
-                uv_data + uv_offset,
-                e->x, e->y, e->z, 0.5, e->w, rotation);
-        }
-        else {
-            make_cube(
-                position_data + position_offset,
-                normal_data + position_offset,
-                uv_data + uv_offset,
-                f1, f2, f3, f4, f5, f6,
-                e->x, e->y, e->z, 0.5, e->w);
-        }
-        position_offset += total * 18;
-        uv_offset += total * 12;
-    } END_MAP_FOR_EACH;
+            if (e->w <= 0) {
+                continue;
+            }
+            int f1, f2, f3, f4, f5, f6;
+            exposed_faces(map, e->x, e->y, e->z, &f1, &f2, &f3, &f4, &f5, &f6);
+            int total = f1 + f2 + f3 + f4 + f5 + f6;
+            if (is_plant(e->w)) {
+                total = total ? 4 : 0;
+            }
+            if (total == 0) {
+                continue;
+            }
+            if (is_plant(e->w)) {
+                float rotation = simplex3(e->x, e->y, e->z, 4, 0.5, 2) * 360;
+                make_plant(
+                        position_data + position_offset,
+                        normal_data + position_offset,
+                        uv_data + uv_offset,
+                        e->x, e->y, e->z, 0.5, e->w, rotation);
+            }
+            else {
+                make_cube(
+                        position_data + position_offset,
+                        normal_data + position_offset,
+                        uv_data + uv_offset,
+                        f1, f2, f3, f4, f5, f6,
+                        e->x, e->y, e->z, 0.5, e->w);
+            }
+            position_offset += total * 18;
+            uv_offset += total * 12;
+        } END_MAP_FOR_EACH;
 
     GLuint position_buffer = make_buffer(
-        GL_ARRAY_BUFFER,
-        sizeof(GLfloat) * faces * 18,
-        position_data
+            GL_ARRAY_BUFFER,
+            sizeof(GLfloat) * faces * 18,
+            position_data
     );
     GLuint normal_buffer = make_buffer(
-        GL_ARRAY_BUFFER,
-        sizeof(GLfloat) * faces * 18,
-        normal_data
+            GL_ARRAY_BUFFER,
+            sizeof(GLfloat) * faces * 18,
+            normal_data
     );
     GLuint uv_buffer = make_buffer(
-        GL_ARRAY_BUFFER,
-        sizeof(GLfloat) * faces * 12,
-        uv_data
+            GL_ARRAY_BUFFER,
+            sizeof(GLfloat) * faces * 12,
+            uv_data
     );
     free(position_data);
     free(normal_data);
@@ -619,19 +638,19 @@ void update_chunk(Chunk *chunk) {
     chunk->uv_coords_buffer = uv_buffer;
 }
 
-void make_chunk(Chunk *chunk, int p, int q) {
-    chunk->p = p;
-    chunk->q = q;
+void make_chunk(Chunk *chunk, int x_chunk_pos, int z_chunk_pos) {
+    chunk->p = x_chunk_pos;
+    chunk->q = z_chunk_pos;
     chunk->faces = 0;
     Map *map = &chunk->map;
     map_alloc(map);
-    make_world(map, p, q);
-    db_update_chunk(map, p, q);
+    make_world(map, x_chunk_pos, z_chunk_pos);
+    db_update_chunk(map, x_chunk_pos, z_chunk_pos);
     update_chunk(chunk);
 }
 
 void draw_chunk(
-    Chunk *chunk, GLuint position_loc, GLuint normal_loc, GLuint uv_loc)
+        Chunk *chunk, GLuint position_loc, GLuint normal_loc, GLuint uv_loc)
 {
     glEnableVertexAttribArray(position_loc);
     glEnableVertexAttribArray(normal_loc);
@@ -660,42 +679,58 @@ void draw_lines(GLuint buffer, GLuint position_loc, int size, int count) {
 
 // ensure_chunks
 //
-// @var Chunk *chunks[MAX_CHUNKS] : (the point to the chunks variable)
+// @var Chunk *chunks[MAX_CHUNKS] : (the pointer to the chunks variable)
 // @var int *chunk_count : the amount of current chunks already created
-// @var int p : the position x of the person divided by max chunks :
+// @var int x_char_map : the position x of the person divided by max chunks :
 //  floorf(roundf(char_x) / CHUNK_SIZE)
-// @var int q : the position x of the person divided by max chunks :
+// @var int z_char_map : the position x of the person divided by max chunks :
 //  floorf(roundf(char_z) / CHUNK_SIZE)
 // @var int force : todo: figure out what this it
-void ensure_chunks(Chunk *chunks, int *chunk_count, int p, int q, int force) {
+void ensure_chunks(Chunk *chunks, int *chunk_count, int x_char_map, int z_char_map, int force) {
     int count = *chunk_count;
     for (int i = 0; i < count; i++) {
         Chunk *chunk = chunks + i;
-        if (chunk_distance(chunk, p, q) >= DELETE_CHUNK_RADIUS) {
-            map_free(&chunk->map);
+        // whatis: this functionality removes the chunk that is no longer needed
+        //  and replaces it with the last chunk made.
+        if (chunk_distance(chunk, x_char_map, z_char_map) >= DELETE_CHUNK_RADIUS) {
+            if (debug_mode) {
+                printf("the chunk is greater than the range radius distance of 32 chunks\n");
+                printf("the chunk->data.x = %u chunk->data.y = %u chunk->data.z = %u chunk->data.w = %u \n"
+                       "chunk->x_char_map = %u chunk->z_char_map = %u chunk->map.mask = %u chunk->map.size = %u chunk->faces = %u\n",
+                       chunk->map.data->x, chunk->map.data->y, chunk->map.data->z, chunk->map.data->w,
+                       chunk->p, chunk->q, chunk->map.mask, chunk->map.size, chunk->faces);
+            }
+            map_free(&chunk->map); // remove the chunk that doesn't matter
             glDeleteBuffers(1, &chunk->position_buffer);
             glDeleteBuffers(1, &chunk->normal_buffer);
             glDeleteBuffers(1, &chunk->uv_coords_buffer);
-            Chunk *other = chunks + (count - 1);
-            chunk->map = other->map;
+            Chunk *other = chunks + (count - 1); // last chunk made
+            printf("the other->data.x = %u other->data.y = %u other->data.z = %u other->data.w = %u \n"
+                   "other->x_char_map = %u other->z_char_map = %u other->map.mask = %u other->map.size = %u other->faces = %u\n",
+                   other->map.data->x, other->map.data->y, other->map.data->z, other->map.data->w,
+                   other->p, other->q, other->map.mask, other->map.size, other->faces);
+            chunk->map = other->map; // changes this chunk to the last chunk
             chunk->p = other->p;
             chunk->q = other->q;
             chunk->faces = other->faces;
             chunk->position_buffer = other->position_buffer;
             chunk->normal_buffer = other->normal_buffer;
             chunk->uv_coords_buffer = other->uv_coords_buffer;
+            printf("the chunk->data.x = %u chunk->data.y = %u chunk->data.z = %u chunk->data.w = %u \n"
+                   "chunk->x_char_map = %u chunk->z_char_map = %u chunk->map.mask = %u chunk->map.size = %u chunk->faces = %u\n",
+                   chunk->map.data->x, chunk->map.data->y, chunk->map.data->z, chunk->map.data->w,
+                   chunk->p, chunk->q, chunk->map.mask, chunk->map.size, chunk->faces);
             count--;
         }
     }
-    int n = CREATE_CHUNK_RADIUS; // radius is 6 chunks
     // whatis: this appears to create a square of chunks around the
     //  location of the character (area X x Z)
-    for (int i = -n; i <= n; i++) {
-        for (int j = -n; j <= n; j++) {
-            int x_char_chunk = p + i; // x_char_chunk = (floorf(roundf(char_x) / 32) + i, 0 / 32 + 0: 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1
-            int z_char_chunk = q + j; // z_char_chunk = (floorf(roundf(char_z) / 32) + j, 0 / 32 + 0: 0, 1, 2, 3, 4 ,5, 0, 1, 2, 3, 4 ,5
-            if (!find_chunk(chunks, count, x_char_chunk, z_char_chunk)) {
-                make_chunk(chunks + count, x_char_chunk, z_char_chunk);
+    for (int width = -CREATE_CHUNK_RADIUS; width <= CREATE_CHUNK_RADIUS; width++) {
+        for (int depth = -CREATE_CHUNK_RADIUS; depth <= CREATE_CHUNK_RADIUS; depth++) {
+            int x_chunk_pos = x_char_map + width; // x_chunk_pos = (floorf(roundf(char_x) / 32) + width, 0 / 32 + 0: 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1
+            int z_chunk_pos = z_char_map + depth; // z_chunk_pos = (floorf(roundf(char_z) / 32) + depth, 0 / 32 + 0: 0, 1, 2, 3, 4 ,5, 0, 1, 2, 3, 4 ,5
+            if (!find_chunk(chunks, count, x_chunk_pos, z_chunk_pos)) {
+                make_chunk(chunks + count, x_chunk_pos, z_chunk_pos); // add a chunk to the end of the array
                 count++;
                 if (!force) {
                     *chunk_count = count;
@@ -710,8 +745,8 @@ void ensure_chunks(Chunk *chunks, int *chunk_count, int p, int q, int force) {
 /// _set_block checks to see if the chunk exists, and if it does, we update it.
 /// we also update it in the database.
 void _set_block(
-    Chunk *chunks, int chunk_count,
-    int p, int q, int x, int y, int z, int texture)
+        Chunk *chunks, int chunk_count,
+        int p, int q, int x, int y, int z, int texture)
 {
     Chunk *chunk = find_chunk(chunks, chunk_count, p, q);
     if (chunk) {
@@ -794,12 +829,12 @@ void on_mouse_button(GLFWwindow *window, int button, int action, int mods) {
 }
 
 void create_window() {
-    #ifdef __APPLE__
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    #endif
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#endif
     int width = 1024;
     int height = 768;
     GLFWmonitor *monitor = NULL;
@@ -830,11 +865,11 @@ int main(int argc, char **argv) {
     glfwSetKeyCallback(window, on_key);
     glfwSetMouseButtonCallback(window, on_mouse_button);
 
-    #ifndef __APPLE__
-        if (glewInit() != GLEW_OK) {
+#ifndef __APPLE__
+    if (glewInit() != GLEW_OK) {
             return -1;
         }
-    #endif
+#endif
 
     if (db_init()) {
         return -1;
@@ -861,7 +896,7 @@ int main(int argc, char **argv) {
     // whatis: this loads the following shaders and then defines variables to
     //  reference the uniform and regular variables in the shader
     GLuint block_program = load_program(
-        "shaders/block_vertex.glsl", "shaders/block_fragment.glsl");
+            "shaders/block_vertex.glsl", "shaders/block_fragment.glsl");
 
     // whatis: the following is the defining of the variables to be used in the shader
     // glGetUniformLocation
@@ -897,7 +932,7 @@ int main(int argc, char **argv) {
 
     // whatis: this loads the next shader and defines the uniforms within it
     GLuint line_program = load_program(
-        "shaders/line_vertex.glsl", "shaders/line_fragment.glsl");
+            "shaders/line_vertex.glsl", "shaders/line_fragment.glsl");
     GLuint line_matrix_loc = glGetUniformLocation(line_program, "matrix");
     GLuint line_position_loc = glGetAttribLocation(line_program, "position");
 
@@ -942,8 +977,13 @@ int main(int argc, char **argv) {
     // debugging values for mouse movement (remove these)
     float rxTmp = 0.0f;
     float ryTmp = 0.0f;
+    double tmpP = 0.0;
+    double tmpQ = 0.0;
 
     double previous = glfwGetTime();
+    // whatis: this is the inner loop. character strafing, movement, and mouse movement is all calculated
+    //  by what seems to be through each loop. meaning, if the dx is 1, it's because on the first frame
+    //  it was 1000, and the second frame is 1001 -- thus giving you the dx of 1.
     while (!glfwWindowShouldClose(window)) {
         // fps
         update_fps(&fps, SHOW_FPS);
@@ -1087,6 +1127,13 @@ int main(int argc, char **argv) {
         int p = floorf(roundf(char_x) / CHUNK_SIZE);
         int q = floorf(roundf(char_z) / CHUNK_SIZE);
         ensure_chunks(chunks, &chunk_count, p, q, 0);
+        if (debug_mode && tmpP != p || tmpQ != q) {
+            printf("modified chunk position\n");
+            printf("chunk_count %d, p = floorf(roundf(char_x) / CHUNK_SIZE)\n q = floorf(roundf(char_z) / CHUNK_SIZE)\n", chunk_count);
+            printf("chunk_count %d, %d = floorf(roundf(%f) / %i)\n %d = floorf(roundf(%f) / %i)\n\n",
+                   chunk_count, p, char_x, 32, q, char_z, 32);
+            tmpP = p; tmpQ = q;
+        }
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -1146,8 +1193,8 @@ int main(int argc, char **argv) {
         if (block_type != previous_block_type) {
             previous_block_type = block_type;
             make_single_cube(
-                &item_position_buffer, &item_normal_buffer, &item_uv_buffer,
-                block_type);
+                    &item_position_buffer, &item_normal_buffer, &item_uv_buffer,
+                    block_type);
         }
         glUseProgram(block_program);
         glUniformMatrix4fv(matrix_loc, 1, GL_FALSE, matrix);
@@ -1156,8 +1203,8 @@ int main(int argc, char **argv) {
         glUniform1f(timer_loc, glfwGetTime());
         glDisable(GL_DEPTH_TEST);
         draw_single_cube(
-            item_position_buffer, item_normal_buffer, item_uv_buffer,
-            position_loc, normal_loc, uv_loc);
+                item_position_buffer, item_normal_buffer, item_uv_buffer,
+                position_loc, normal_loc, uv_loc);
         glEnable(GL_DEPTH_TEST);
 
         glfwSwapBuffers(window);
