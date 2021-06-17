@@ -30,7 +30,16 @@ void map_free(Map *map) {
 
 void map_grow(Map *map);
 
-void map_set(Map *map, int x, int y, int z, int block_type) {
+// map_set
+//
+// fills in the block, including the texture. saves it to the map
+//
+// @var Map *map
+// @var int x : position of block
+// @var int y : position of block
+// @var int z : position of block
+// @var int block_texture : texture of block
+void map_set(Map *map, int x, int y, int z, int block_texture) {
     unsigned int index = hash(x, y, z) & map->mask;
     Entry *entry = map->data + index;
     int overwrite = 0;
@@ -43,13 +52,13 @@ void map_set(Map *map, int x, int y, int z, int block_type) {
         entry = map->data + index;
     }
     if (overwrite) {
-        entry->w = block_type;
+        entry->w = block_texture;
     }
-    else if (block_type) {
+    else if (block_texture) {
         entry->x = x;
         entry->y = y;
         entry->z = z;
-        entry->w = block_type;
+        entry->w = block_texture;
         map->size++;
         if (map->size * 2 > map->mask) {
             map_grow(map);

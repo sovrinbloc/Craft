@@ -27,7 +27,7 @@ typedef struct {
 
 void map_alloc(Map *map);
 void map_free(Map *map);
-void map_set(Map *map, int x, int y, int z, int block_type);
+void map_set(Map *map, int x, int y, int z, int block_texture);
 int map_get(Map *map, int x, int y, int z);
 
 #endif
