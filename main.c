@@ -25,14 +25,14 @@
 // https://github.com/Pannoniae/MeinKraft
 
 static GLFWwindow *window;
-static int exclusive = 1;
+static int exclusive_to_window = 0;
 static int left_click = 0;
 static int right_click = 0;
 static int flying = 0;
 static int block_type = 1;
 static int ortho = 0;
 static float fov = 65.0;
-
+static int debug_mode = 1;
 // buffer objects
 // object that stores unformatted, allocated memory (GPU)
 // such as vertex data, pixel data, data retrieved by images,
@@ -185,6 +185,15 @@ void get_sight_vector(float rx, float ry, float *dx, float *dy, float *dz) {
     *dz = sinf(rx - RADIANS(90)) * m;
 }
 
+// get_motion_vector
+// @var int flying : is the user flying or not
+// @var int sz ? the altered strafing movement?
+// @var int sx ? the altered position of the character based on strafing?
+// @var int rx - rotational angle x
+// @var int ry - rotational angle y
+// @var int vx
+// @var int vy
+// @var int vz
 void get_motion_vector(int flying, int sz, int sx, float rx, float ry,
     float *vx, float *vy, float *vz) {
     *vx = 0; *vy = 0; *vz = 0;
@@ -207,7 +216,7 @@ void get_motion_vector(int flying, int sz, int sx, float rx, float ry,
         *vz = sinf(rx + strafe) * m;
     }
     else {
-        *vx = cosf(rx + strafe);
+        *vx = cosf(rx + strafe); // modification of positioning
         *vy = 0;
         *vz = sinf(rx + strafe);
     }
@@ -743,8 +752,8 @@ void on_key(GLFWwindow *window, int key, int scancode, int action, int mods) {
         return;
     }
     if (key == GLFW_KEY_ESCAPE) {
-        if (exclusive) {
-            exclusive = 0;
+        if (exclusive_to_window) {
+            exclusive_to_window = 0;
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
         }
     }
@@ -764,7 +773,7 @@ void on_mouse_button(GLFWwindow *window, int button, int action, int mods) {
         return;
     }
     if (button == 0) {
-        if (exclusive) {
+        if (exclusive_to_window) {
             if (mods & GLFW_MOD_SUPER) {
                 right_click = 1;
             }
@@ -773,12 +782,12 @@ void on_mouse_button(GLFWwindow *window, int button, int action, int mods) {
             }
         }
         else {
-            exclusive = 1;
+            exclusive_to_window = 1;
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         }
     }
     if (button == 1) {
-        if (exclusive) {
+        if (exclusive_to_window) {
             right_click = 1;
         }
     }
@@ -910,8 +919,8 @@ int main(int argc, char **argv) {
     float dy = 0; // jumping position
     float rx = 0; // horizontal rotation (mouse)
     float ry = 0; // vertical rotation (mouse)
-    double px = 0; // mouse position (x)
-    double py = 0; // mouse position (y)
+    double mouse_dx = 0; // mouse position (x)
+    double mouse_dy = 0; // mouse position (y)
 
     // whatis: loads the state of the character in char_x, char_y, char_z positioning
     int loaded = db_load_state(&char_x, &char_y, &char_z, &rx, &ry); // character position, and mouse position
@@ -928,7 +937,11 @@ int main(int argc, char **argv) {
 
     // returns the position of the cursor, in screen coordinates,
     // relative to the upper-left corner of the content area
-    glfwGetCursorPos(window, &px, &py);
+    glfwGetCursorPos(window, &mouse_dx, &mouse_dy);
+
+    // debugging values for mouse movement (remove these)
+    float rxTmp = 0.0f;
+    float ryTmp = 0.0f;
 
     double previous = glfwGetTime();
     while (!glfwWindowShouldClose(window)) {
@@ -938,12 +951,39 @@ int main(int argc, char **argv) {
         double dt = MIN(now - previous, 0.2);
         previous = now;
 
-        if (exclusive && (px || py)) {
+
+        // whatis: exculsive is when the mouse is exclusively bound to the window, and will
+        //   not be allowed outside of it. that means you have full rotational function
+        //   and do not have to worry about moving the mouse off the screen. also, it means
+        //   the functionality is based on deltas of the mouse, instead of raw positioning
+        // the maximum rx is around 6.28, the maximum ry is around 1.5
+        if (exclusive_to_window && (mouse_dx || mouse_dy)) {
+            // whatis: this is the section that changes the location of the camera
+            //  based on the position of the mouse... the more you move, or the faster
+            //  you move, the faster the viewport changes. mx and mouse_dx are the delta of
+            //  mouse movement
             double mx, my;
             glfwGetCursorPos(window, &mx, &my); // returns position of cursor relative to window
-            float m = 0.0025;
-            rx += (mx - px) * m;
-            ry -= (my - py) * m;
+            float m = 0.0025; // sensitivity
+            // rx is the final rotation vector of the mouse after math is done
+            // mx is the mouse position on the actual screen... the NEW location
+            // mouse_dx is the OLD location of the mouse (directly before move)
+            // dx is the delta from one point to the next ... the NEW LOCATION subtracting the old location (new - old)
+            // m is the sensitivity (we have to make it translate it into a [-1, 0..., 1] viewpoint or else it will move too much
+            // whatis:
+            //  if rx = 0; and mx = 0; and mouse_dy is 3, then it will
+            //  turn into rx = -3. * 0.0025 =
+            rx += (mx - mouse_dx) * m; // the movement of the camera
+            ry -= (my - mouse_dy) * m;
+            if (debug_mode) {
+                if (rx != rxTmp || ry != ryTmp) {
+                    rxTmp = rx;
+                    ryTmp = ry;
+                    printf("(rx, ry) = %f, %f... (mx - mouse_dx)... (%f - %f) = %f, (my - mouse_dy)... (%f - %f) = %f \n", rxTmp, ryTmp, mx, mouse_dx, mx - mouse_dx, my, mouse_dy, my - mouse_dy);
+                }
+            }
+
+            // the minimum is 0, the maximum is 6.28
             if (rx < 0) {
                 rx += RADIANS(360);
             }
@@ -952,26 +992,31 @@ int main(int argc, char **argv) {
             }
             ry = MAX(ry, -RADIANS(90));
             ry = MIN(ry, RADIANS(90));
-            px = mx;
-            py = my;
+            mouse_dx = mx;
+            mouse_dy = my;
         }
         else {
-            glfwGetCursorPos(window, &px, &py);
+            glfwGetCursorPos(window, &mouse_dx, &mouse_dy);
         }
 
+        // whatis: this is what removes blocks
         if (left_click) {
             left_click = 0;
             int hx, hy, hz;
             if (hit_test(chunks, chunk_count, 0, char_x, char_y, char_z, rx, ry,
                          &hx, &hy, &hz))
             {
+                if (debug_mode) {
+                    printf("hit_test succeeded");
+                }
                 if (hy > 0) {
-                    set_block(chunks, chunk_count, hx, hy, hz, 0);
+                    set_block(chunks, chunk_count, hx, hy, hz, REMOVE_BLOCK);
                     printf("Left Click: %d %d %d %d %d\n", chunk_count, hx, hy, hz, REMOVE_BLOCK);
                 }
             }
         }
 
+        // whatis: this is what adds blocks
         if (right_click) {
             right_click = 0;
             int hx, hy, hz;
@@ -987,8 +1032,8 @@ int main(int argc, char **argv) {
 
         int sz = 0;
         int sx = 0;
-        ortho = glfwGetKey(window, 'F');
-        fov = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) ? 15.0 : 65.0;
+        ortho = glfwGetKey(window, 'F'); // shows the display from up above
+        fov = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) ? 15.0 : 65.0; // change in aspect ratio?
         if (glfwGetKey(window, 'Q')) break;
         if (glfwGetKey(window, 'W')) sz--;
         if (glfwGetKey(window, 'S')) sz++;
