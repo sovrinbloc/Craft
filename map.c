@@ -21,7 +21,7 @@ int hash(int x, int y, int z) {
 void map_alloc(Map *map) {
     map->mask = 0xfff;
     map->size = 0;
-    map->data = (Entry *)calloc(map->mask + 1, sizeof(Entry));
+    map->data = (Entry *)calloc(map->mask + 1, sizeof(Entry)); // hashmap initialized
 }
 
 void map_free(Map *map) {
@@ -40,9 +40,12 @@ void map_grow(Map *map);
 // @var int z : position of block
 // @var int block_texture : texture of block
 void map_set(Map *map, int x, int y, int z, int block_texture) {
-    unsigned int index = hash(x, y, z) & map->mask;
-    Entry *entry = map->data + index;
+    unsigned int index = hash(x, y, z) & map->mask; // hint: what the fuck is this?
+    Entry *entry = map->data + index; // map->data = (Entry *)calloc(map->mask + 1, sizeof(Entry));
     int overwrite = 0;
+
+    // whatis: see if the hash exists in the map. if it does,
+    //  continue on until we find an entry that is empty
     while (!EMPTY_ENTRY(entry)) {
         if (entry->x == x && entry->y == y && entry->z == z) {
             overwrite = 1;
