@@ -49,7 +49,7 @@ void map_set(Map *map, int x, int y, int z, int block_texture) {
 
     // whatis: see if the hash exists in the map. if it does,
     //  continue on until we find an entry that is empty
-    while (!EMPTY_ENTRY(entry)) {
+    while (!EMPTY_BLOCK(entry)) {
         if (entry->x == x && entry->y == y && entry->z == z) {
             overwrite = 1;
             break;
@@ -73,10 +73,21 @@ void map_set(Map *map, int x, int y, int z, int block_texture) {
     }
 }
 
+// map_get
+//
+// hashes the coordinates, and hits the hash map (map->data)
+// to see if we can get the texture. if we can't find it, then
+// find the next one until we return one.
+//
+// @var Map *map : the chunk's map, containing blocks
+// @var int x : x position of block
+// @var int y : y position of block
+// @var int z : z position of block
+// @return texture (block type) [w]
 int map_get(Map *map, int x, int y, int z) {
     unsigned int index = hash(x, y, z) & map->mask;
     Block *entry = map->data + index;
-    while (!EMPTY_ENTRY(entry)) {
+    while (!EMPTY_BLOCK(entry)) {
         if (entry->x == x && entry->y == y && entry->z == z) {
             return entry->w;
         }
@@ -99,9 +110,9 @@ void map_grow(Map *map) {
     new_map.size = 0;
     new_map.data = (Block *)calloc(new_map.mask + 1, sizeof(Block));
     for (unsigned int index = 0; index <= map->mask; index++) {
-        Block *entry = map->data + index;
-        if (!EMPTY_ENTRY(entry)) {
-            map_set(&new_map, entry->x, entry->y, entry->z, entry->w);
+        Block *block = map->data + index;
+        if (!EMPTY_BLOCK(block)) {
+            map_set(&new_map, block->x, block->y, block->z, block->w);
         }
     }
     free(map->data);

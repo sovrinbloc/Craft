@@ -465,6 +465,8 @@ int player_intersects_block(
 }
 
 // make_world
+// todo: figure out if these are generating cubes, or the faces to the cube
+//   as it relates to: update_chunk
 //
 // @var Map *map : an empty map
 // @var int x_chunk_pos : the x position of the chunk
@@ -593,6 +595,9 @@ void draw_single_cube(
 // exposed_faces
 // returns false if the given position is surrounded on all sides
 // by blocks. True, otherwise.
+// todo: figure out if in the build_world or whatever function that
+//  is if we are actually adding textures to the entire cube, or if
+//  we are doing that to each face of the cube itself
 void exposed_faces(
         Map *map, int x, int y, int z,
         int *f1, int *f2, int *f3, int *f4, int *f5, int *f6)
@@ -616,7 +621,7 @@ void update_chunk(Chunk *chunk) {
 
     int faces = 0;
     MAP_FOR_EACH(map, e) {
-            if (e->w <= 0) {
+            if (e->w <= 0) { // do not render blocks that are un-textured
                 continue;
             }
             int f1, f2, f3, f4, f5, f6;

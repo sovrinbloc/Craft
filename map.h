@@ -1,12 +1,12 @@
 #ifndef _map_h_
 #define _map_h_
 
-#define EMPTY_ENTRY(e) (!(e)->x && !(e)->y && !(e)->z && !(e)->w)
+#define EMPTY_BLOCK(e) (!(e)->x && !(e)->y && !(e)->z && !(e)->w)
 
-#define MAP_FOR_EACH(map, entry) \
+#define MAP_FOR_EACH(map, block) \
     for (unsigned int i = 0; i <= map->mask; i++) { \
-        Block *entry = map->data + i; \
-        if (EMPTY_ENTRY(entry)) { \
+        Block *block = map->data + i; \
+        if (EMPTY_BLOCK(block)) { \
             continue; \
         }
 
