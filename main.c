@@ -32,7 +32,7 @@ enum BlockType {
     Dirt,
     Plank,
     Snow,
-    Water,
+    Glass,
     Clouds = 16,
     Weeds,
     PlantYellow,
@@ -66,9 +66,12 @@ static int ortho = 0;
 static float fov = 65.0;
 static int debug_mode = 1;
 // buffer objects
-// object that stores unformatted, allocated memory (GPU)
-// such as vertex data, pixel data, data retrieved by images,
-// or the framebuffer
+// whatis: Buffer Objects are OpenGL Objects that store an array of
+//  unformatted memory allocated by the OpenGL context (AKA the GPU).
+//  These can be used to store vertex data,  pixel data retrieved
+//  from images or the framebuffer,  and a variety of other things.
+//  https://www.khronos.org/opengl/wiki/Buffer_Object
+//
 //
 // @var uv_coords_buffer
 // When texturing a mesh, you need a way to tell to OpenGL which part of the image has to be used for each triangle. This is done with UV coordinates.
@@ -94,15 +97,17 @@ typedef struct {
 } Chunk;
 
 int is_plant(int w) {
-    return w > 16;
+    return w > Clouds;
 }
 
 int is_obstacle(int w) {
-    return w != 0 && w < 16;
+    return w != Nothing && w < Clouds;
 }
 
+// is_transparent detects whether a block has a texture
+//
 int is_transparent(int w) {
-    return w == 0 || w == 10 || is_plant(w);
+    return w == Nothing || w == Glass || is_plant(w);
 }
 
 void update_matrix_2d(float *matrix) {
@@ -543,19 +548,19 @@ void make_single_cube(
     glDeleteBuffers(1, position_buffer);
     glDeleteBuffers(1, normal_buffer);
     glDeleteBuffers(1, uv_buffer);
-    GLfloat *position_data = malloc(sizeof(GLfloat) * faces * 18);
+    GLfloat *vertices_data = malloc(sizeof(GLfloat) * faces * 18);
     GLfloat *normal_data = malloc(sizeof(GLfloat) * faces * 18);
-    GLfloat *uv_data = malloc(sizeof(GLfloat) * faces * 12);
+    GLfloat *texture_data = malloc(sizeof(GLfloat) * faces * 12);
     make_cube(
-            position_data,
+            vertices_data,
             normal_data,
-            uv_data,
+            texture_data,
             1, 1, 1, 1, 1, 1,
             0, 0, 0, 0.5, w);
     *position_buffer = make_buffer(
             GL_ARRAY_BUFFER,
             sizeof(GLfloat) * faces * 18,
-            position_data
+            vertices_data
     );
     *normal_buffer = make_buffer(
             GL_ARRAY_BUFFER,
@@ -565,11 +570,11 @@ void make_single_cube(
     *uv_buffer = make_buffer(
             GL_ARRAY_BUFFER,
             sizeof(GLfloat) * faces * 12,
-            uv_data
+            texture_data
     );
-    free(position_data);
+    free(vertices_data);
     free(normal_data);
-    free(uv_data);
+    free(texture_data);
 }
 
 void draw_single_cube(
@@ -594,20 +599,24 @@ void draw_single_cube(
 
 // exposed_faces
 // returns false if the given position is surrounded on all sides
-// by blocks. True, otherwise.
+// by blocks. True, otherwise. It uses the current blocks as the center
+// and checks to see if there is a block...
+// on top, bottom, to the left, to the right, up, and down
+//
 // todo: figure out if in the build_world or whatever function that
 //  is if we are actually adding textures to the entire cube, or if
 //  we are doing that to each face of the cube itself
+//  (related to fn "make_world")
 void exposed_faces(
         Map *map, int x, int y, int z,
         int *f1, int *f2, int *f3, int *f4, int *f5, int *f6)
 {
-    *f1 = is_transparent(map_get(map, x - 1, y, z));
-    *f2 = is_transparent(map_get(map, x + 1, y, z));
-    *f3 = is_transparent(map_get(map, x, y + 1, z));
-    *f4 = is_transparent(map_get(map, x, y - 1, z)) && (y > 0);
-    *f5 = is_transparent(map_get(map, x, y, z + 1));
-    *f6 = is_transparent(map_get(map, x, y, z - 1));
+    *f1 = is_transparent(map_get(map, x - 1, y, z)); // left hint: not sure
+    *f2 = is_transparent(map_get(map, x + 1, y, z)); // right hint: not sure
+    *f3 = is_transparent(map_get(map, x, y + 1, z)); // top
+    *f4 = is_transparent(map_get(map, x, y - 1, z)) && (y > 0); // bottom
+    *f5 = is_transparent(map_get(map, x, y, z + 1)); // front hint: not sure
+    *f6 = is_transparent(map_get(map, x, y, z - 1)); // back hint: not sure
 }
 
 void update_chunk(Chunk *chunk) {
@@ -619,7 +628,7 @@ void update_chunk(Chunk *chunk) {
         glDeleteBuffers(1, &chunk->uv_coords_buffer);
     }
 
-    int faces = 0;
+    int faces = 0; // the amount of faces visible
     MAP_FOR_EACH(map, e) {
             if (e->w <= 0) { // do not render blocks that are un-textured
                 continue;
@@ -633,9 +642,9 @@ void update_chunk(Chunk *chunk) {
             faces += total;
         } END_MAP_FOR_EACH;
 
-    GLfloat *position_data = malloc(sizeof(GLfloat) * faces * 18);
-    GLfloat *normal_data = malloc(sizeof(GLfloat) * faces * 18);
-    GLfloat *uv_data = malloc(sizeof(GLfloat) * faces * 12);
+    GLfloat *vertices_data = malloc(sizeof(GLfloat) * faces * 18); // 2 triangle?
+    GLfloat *normal_data = malloc(sizeof(GLfloat) * faces * 18); // 2 triangle?
+    GLfloat *texture_data = malloc(sizeof(GLfloat) * faces * 12); // square?
     int position_offset = 0;
     int uv_offset = 0;
     MAP_FOR_EACH(map, e) {
@@ -646,24 +655,25 @@ void update_chunk(Chunk *chunk) {
             exposed_faces(map, e->x, e->y, e->z, &f1, &f2, &f3, &f4, &f5, &f6);
             int total = f1 + f2 + f3 + f4 + f5 + f6;
             if (is_plant(e->w)) {
-                total = total ? 4 : 0;
+                total = total ? 4 : 0; // if plant is visible, return 4. if not, 0.
             }
             if (total == 0) {
                 continue;
             }
             if (is_plant(e->w)) {
+                // create random rotation if the item is a plant
                 float rotation = simplex3(e->x, e->y, e->z, 4, 0.5, 2) * 360;
                 make_plant(
-                        position_data + position_offset,
+                        vertices_data + position_offset,
                         normal_data + position_offset,
-                        uv_data + uv_offset,
+                        texture_data + uv_offset,
                         e->x, e->y, e->z, 0.5, e->w, rotation);
             }
             else {
                 make_cube(
-                        position_data + position_offset,
+                        vertices_data + position_offset,
                         normal_data + position_offset,
-                        uv_data + uv_offset,
+                        texture_data + uv_offset,
                         f1, f2, f3, f4, f5, f6,
                         e->x, e->y, e->z, 0.5, e->w);
             }
@@ -674,7 +684,7 @@ void update_chunk(Chunk *chunk) {
     GLuint position_buffer = make_buffer(
             GL_ARRAY_BUFFER,
             sizeof(GLfloat) * faces * 18,
-            position_data
+            vertices_data
     );
     GLuint normal_buffer = make_buffer(
             GL_ARRAY_BUFFER,
@@ -684,11 +694,11 @@ void update_chunk(Chunk *chunk) {
     GLuint uv_buffer = make_buffer(
             GL_ARRAY_BUFFER,
             sizeof(GLfloat) * faces * 12,
-            uv_data
+            texture_data
     );
-    free(position_data);
+    free(vertices_data);
     free(normal_data);
-    free(uv_data);
+    free(texture_data);
 
     chunk->faces = faces;
     chunk->position_buffer = position_buffer;

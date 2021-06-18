@@ -76,8 +76,8 @@ void map_set(Map *map, int x, int y, int z, int block_texture) {
 // map_get
 //
 // hashes the coordinates, and hits the hash map (map->data)
-// to see if we can get the texture. if we can't find it, then
-// find the next one until we return one.
+// to see if we can get the block. if we can find it, then return it's texture
+// if we can't find it, then keep going until we find it.
 //
 // @var Map *map : the chunk's map, containing blocks
 // @var int x : x position of block

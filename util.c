@@ -305,13 +305,24 @@ void mat_ortho(
     matrix[15] = 1;
 }
 
+// make_plant
+//
+// @var float *vertex
+// @var float *normal
+// @var float *texture
+// @var float x
+// @var float y
+// @var float z
+// @var float n
+// @var int w
+// @var float rotation
 void make_plant(
     float *vertex, float *normal, float *texture,
     float x, float y, float z, float n, int w, float rotation)
 {
-    float *v = vertex;
-    float *d = normal;
-    float *t = texture;
+    float *vertex_data = vertex;
+    float *normal_data = normal;
+    float *texture_data = texture;
     float s = 0.0625;
     float a = 0;
     float b = s;
@@ -320,98 +331,98 @@ void make_plant(
     du = (w % 16) * s;
     dv = (w / 16 * 3) * s;
     // left
-    *(v++) = x; *(v++) = y - n; *(v++) = z - n;
-    *(v++) = x; *(v++) = y + n; *(v++) = z + n;
-    *(v++) = x; *(v++) = y + n; *(v++) = z - n;
-    *(v++) = x; *(v++) = y - n; *(v++) = z - n;
-    *(v++) = x; *(v++) = y - n; *(v++) = z + n;
-    *(v++) = x; *(v++) = y + n; *(v++) = z + n;
-    *(d++) = -1; *(d++) = 0; *(d++) = 0;
-    *(d++) = -1; *(d++) = 0; *(d++) = 0;
-    *(d++) = -1; *(d++) = 0; *(d++) = 0;
-    *(d++) = -1; *(d++) = 0; *(d++) = 0;
-    *(d++) = -1; *(d++) = 0; *(d++) = 0;
-    *(d++) = -1; *(d++) = 0; *(d++) = 0;
-    *(t++) = a + du; *(t++) = a + dv;
-    *(t++) = b + du; *(t++) = b + dv;
-    *(t++) = a + du; *(t++) = b + dv;
-    *(t++) = a + du; *(t++) = a + dv;
-    *(t++) = b + du; *(t++) = a + dv;
-    *(t++) = b + du; *(t++) = b + dv;
+    *(vertex_data++) = x; *(vertex_data++) = y - n; *(vertex_data++) = z - n;
+    *(vertex_data++) = x; *(vertex_data++) = y + n; *(vertex_data++) = z + n;
+    *(vertex_data++) = x; *(vertex_data++) = y + n; *(vertex_data++) = z - n;
+    *(vertex_data++) = x; *(vertex_data++) = y - n; *(vertex_data++) = z - n;
+    *(vertex_data++) = x; *(vertex_data++) = y - n; *(vertex_data++) = z + n;
+    *(vertex_data++) = x; *(vertex_data++) = y + n; *(vertex_data++) = z + n;
+    *(normal_data++) = -1; *(normal_data++) = 0; *(normal_data++) = 0;
+    *(normal_data++) = -1; *(normal_data++) = 0; *(normal_data++) = 0;
+    *(normal_data++) = -1; *(normal_data++) = 0; *(normal_data++) = 0;
+    *(normal_data++) = -1; *(normal_data++) = 0; *(normal_data++) = 0;
+    *(normal_data++) = -1; *(normal_data++) = 0; *(normal_data++) = 0;
+    *(normal_data++) = -1; *(normal_data++) = 0; *(normal_data++) = 0;
+    *(texture_data++) = a + du; *(texture_data++) = a + dv;
+    *(texture_data++) = b + du; *(texture_data++) = b + dv;
+    *(texture_data++) = a + du; *(texture_data++) = b + dv;
+    *(texture_data++) = a + du; *(texture_data++) = a + dv;
+    *(texture_data++) = b + du; *(texture_data++) = a + dv;
+    *(texture_data++) = b + du; *(texture_data++) = b + dv;
     // right
-    *(v++) = x; *(v++) = y - n; *(v++) = z - n;
-    *(v++) = x; *(v++) = y + n; *(v++) = z + n;
-    *(v++) = x; *(v++) = y - n; *(v++) = z + n;
-    *(v++) = x; *(v++) = y - n; *(v++) = z - n;
-    *(v++) = x; *(v++) = y + n; *(v++) = z - n;
-    *(v++) = x; *(v++) = y + n; *(v++) = z + n;
-    *(d++) = 1; *(d++) = 0; *(d++) = 0;
-    *(d++) = 1; *(d++) = 0; *(d++) = 0;
-    *(d++) = 1; *(d++) = 0; *(d++) = 0;
-    *(d++) = 1; *(d++) = 0; *(d++) = 0;
-    *(d++) = 1; *(d++) = 0; *(d++) = 0;
-    *(d++) = 1; *(d++) = 0; *(d++) = 0;
-    *(t++) = b + du; *(t++) = a + dv;
-    *(t++) = a + du; *(t++) = b + dv;
-    *(t++) = a + du; *(t++) = a + dv;
-    *(t++) = b + du; *(t++) = a + dv;
-    *(t++) = b + du; *(t++) = b + dv;
-    *(t++) = a + du; *(t++) = b + dv;
+    *(vertex_data++) = x; *(vertex_data++) = y - n; *(vertex_data++) = z - n;
+    *(vertex_data++) = x; *(vertex_data++) = y + n; *(vertex_data++) = z + n;
+    *(vertex_data++) = x; *(vertex_data++) = y - n; *(vertex_data++) = z + n;
+    *(vertex_data++) = x; *(vertex_data++) = y - n; *(vertex_data++) = z - n;
+    *(vertex_data++) = x; *(vertex_data++) = y + n; *(vertex_data++) = z - n;
+    *(vertex_data++) = x; *(vertex_data++) = y + n; *(vertex_data++) = z + n;
+    *(normal_data++) = 1; *(normal_data++) = 0; *(normal_data++) = 0;
+    *(normal_data++) = 1; *(normal_data++) = 0; *(normal_data++) = 0;
+    *(normal_data++) = 1; *(normal_data++) = 0; *(normal_data++) = 0;
+    *(normal_data++) = 1; *(normal_data++) = 0; *(normal_data++) = 0;
+    *(normal_data++) = 1; *(normal_data++) = 0; *(normal_data++) = 0;
+    *(normal_data++) = 1; *(normal_data++) = 0; *(normal_data++) = 0;
+    *(texture_data++) = b + du; *(texture_data++) = a + dv;
+    *(texture_data++) = a + du; *(texture_data++) = b + dv;
+    *(texture_data++) = a + du; *(texture_data++) = a + dv;
+    *(texture_data++) = b + du; *(texture_data++) = a + dv;
+    *(texture_data++) = b + du; *(texture_data++) = b + dv;
+    *(texture_data++) = a + du; *(texture_data++) = b + dv;
     // front
-    *(v++) = x - n; *(v++) = y - n; *(v++) = z;
-    *(v++) = x + n; *(v++) = y - n; *(v++) = z;
-    *(v++) = x + n; *(v++) = y + n; *(v++) = z;
-    *(v++) = x - n; *(v++) = y - n; *(v++) = z;
-    *(v++) = x + n; *(v++) = y + n; *(v++) = z;
-    *(v++) = x - n; *(v++) = y + n; *(v++) = z;
-    *(d++) = 0; *(d++) = 0; *(d++) = -1;
-    *(d++) = 0; *(d++) = 0; *(d++) = -1;
-    *(d++) = 0; *(d++) = 0; *(d++) = -1;
-    *(d++) = 0; *(d++) = 0; *(d++) = -1;
-    *(d++) = 0; *(d++) = 0; *(d++) = -1;
-    *(d++) = 0; *(d++) = 0; *(d++) = -1;
-    *(t++) = b + du; *(t++) = a + dv;
-    *(t++) = a + du; *(t++) = a + dv;
-    *(t++) = a + du; *(t++) = b + dv;
-    *(t++) = b + du; *(t++) = a + dv;
-    *(t++) = a + du; *(t++) = b + dv;
-    *(t++) = b + du; *(t++) = b + dv;
+    *(vertex_data++) = x - n; *(vertex_data++) = y - n; *(vertex_data++) = z;
+    *(vertex_data++) = x + n; *(vertex_data++) = y - n; *(vertex_data++) = z;
+    *(vertex_data++) = x + n; *(vertex_data++) = y + n; *(vertex_data++) = z;
+    *(vertex_data++) = x - n; *(vertex_data++) = y - n; *(vertex_data++) = z;
+    *(vertex_data++) = x + n; *(vertex_data++) = y + n; *(vertex_data++) = z;
+    *(vertex_data++) = x - n; *(vertex_data++) = y + n; *(vertex_data++) = z;
+    *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = -1;
+    *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = -1;
+    *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = -1;
+    *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = -1;
+    *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = -1;
+    *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = -1;
+    *(texture_data++) = b + du; *(texture_data++) = a + dv;
+    *(texture_data++) = a + du; *(texture_data++) = a + dv;
+    *(texture_data++) = a + du; *(texture_data++) = b + dv;
+    *(texture_data++) = b + du; *(texture_data++) = a + dv;
+    *(texture_data++) = a + du; *(texture_data++) = b + dv;
+    *(texture_data++) = b + du; *(texture_data++) = b + dv;
     // back
-    *(v++) = x - n; *(v++) = y - n; *(v++) = z;
-    *(v++) = x + n; *(v++) = y + n; *(v++) = z;
-    *(v++) = x + n; *(v++) = y - n; *(v++) = z;
-    *(v++) = x - n; *(v++) = y - n; *(v++) = z;
-    *(v++) = x - n; *(v++) = y + n; *(v++) = z;
-    *(v++) = x + n; *(v++) = y + n; *(v++) = z;
-    *(d++) = 0; *(d++) = 0; *(d++) = 1;
-    *(d++) = 0; *(d++) = 0; *(d++) = 1;
-    *(d++) = 0; *(d++) = 0; *(d++) = 1;
-    *(d++) = 0; *(d++) = 0; *(d++) = 1;
-    *(d++) = 0; *(d++) = 0; *(d++) = 1;
-    *(d++) = 0; *(d++) = 0; *(d++) = 1;
-    *(t++) = a + du; *(t++) = a + dv;
-    *(t++) = b + du; *(t++) = b + dv;
-    *(t++) = b + du; *(t++) = a + dv;
-    *(t++) = a + du; *(t++) = a + dv;
-    *(t++) = a + du; *(t++) = b + dv;
-    *(t++) = b + du; *(t++) = b + dv;
+    *(vertex_data++) = x - n; *(vertex_data++) = y - n; *(vertex_data++) = z;
+    *(vertex_data++) = x + n; *(vertex_data++) = y + n; *(vertex_data++) = z;
+    *(vertex_data++) = x + n; *(vertex_data++) = y - n; *(vertex_data++) = z;
+    *(vertex_data++) = x - n; *(vertex_data++) = y - n; *(vertex_data++) = z;
+    *(vertex_data++) = x - n; *(vertex_data++) = y + n; *(vertex_data++) = z;
+    *(vertex_data++) = x + n; *(vertex_data++) = y + n; *(vertex_data++) = z;
+    *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = 1;
+    *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = 1;
+    *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = 1;
+    *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = 1;
+    *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = 1;
+    *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = 1;
+    *(texture_data++) = a + du; *(texture_data++) = a + dv;
+    *(texture_data++) = b + du; *(texture_data++) = b + dv;
+    *(texture_data++) = b + du; *(texture_data++) = a + dv;
+    *(texture_data++) = a + du; *(texture_data++) = a + dv;
+    *(texture_data++) = a + du; *(texture_data++) = b + dv;
+    *(texture_data++) = b + du; *(texture_data++) = b + dv;
     // rotate the plant
     float mat[16];
     float vec[4] = {0};
     matrix_rotate(mat, 0, 1, 0, RADIANS(rotation));
     for (int i = 0; i < 24; i++) {
         // vertex
-        v = vertex + i * 3;
-        vec[0] = *(v++) - x; vec[1] = *(v++) - y; vec[2] = *(v++) - z;
+        vertex_data = vertex + i * 3;
+        vec[0] = *(vertex_data++) - x; vec[1] = *(vertex_data++) - y; vec[2] = *(vertex_data++) - z;
         mat_vec_multiply(vec, mat, vec);
-        v = vertex + i * 3;
-        *(v++) = vec[0] + x; *(v++) = vec[1] + y; *(v++) = vec[2] + z;
+        vertex_data = vertex + i * 3;
+        *(vertex_data++) = vec[0] + x; *(vertex_data++) = vec[1] + y; *(vertex_data++) = vec[2] + z;
         // normal
-        d = normal + i * 3;
-        vec[0] = *(d++); vec[1] = *(d++); vec[2] = *(d++);
+        normal_data = normal + i * 3;
+        vec[0] = *(normal_data++); vec[1] = *(normal_data++); vec[2] = *(normal_data++);
         mat_vec_multiply(vec, mat, vec);
-        d = normal + i * 3;
-        *(d++) = vec[0]; *(d++) = vec[1]; *(d++) = vec[2];
+        normal_data = normal + i * 3;
+        *(normal_data++) = vec[0]; *(normal_data++) = vec[1]; *(normal_data++) = vec[2];
     }
 }
 
