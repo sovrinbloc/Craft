@@ -87,9 +87,9 @@ typedef struct {
     Map map;
     int p; // x location on the map
     int q; // z location on the map
-    int faces;
-    GLuint position_buffer;
-    GLuint normal_buffer;
+    int faces; // whatis: i don't know what faces is
+    GLuint position_buffer; // whatis: i am not sure what the position buffer is
+    GLuint normal_buffer; // whatis: i don't know what this is
     GLuint uv_coords_buffer; // storing texture coordinates
 } Chunk;
 
@@ -477,6 +477,8 @@ int player_intersects_block(
 // the perlin formula is generated twice.
 //
 void make_world(Map *map, int x_chunk_pos, int z_chunk_pos) {
+    enum BlockType block_texture;
+
     int pad = 1; // todo: figure out what this is. Although I think it means the distance between blocks
     for (int dx = -pad; dx < CHUNK_SIZE + pad; dx++) { // from -1 to +33?
         for (int dz = -pad; dz < CHUNK_SIZE + pad; dz++) {
@@ -491,7 +493,6 @@ void make_world(Map *map, int x_chunk_pos, int z_chunk_pos) {
             float g = simplex2(-x * 0.01, -z * 0.01, 2, 0.9, 2); // smoother
             int max_map_height = g * 32 + 16; // max height
             int block_y = f * max_map_height; // the location of the block being built
-            enum BlockType block_texture;
             block_texture = Grass; // block_texture (cube type)
             int ground_level_height = 12; // ground_level_height = the ground level (12 blocks exist below)
             if (block_y <= ground_level_height) {

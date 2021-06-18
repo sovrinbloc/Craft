@@ -5,7 +5,7 @@
 
 #define MAP_FOR_EACH(map, entry) \
     for (unsigned int i = 0; i <= map->mask; i++) { \
-        Entry *entry = map->data + i; \
+        Block *entry = map->data + i; \
         if (EMPTY_ENTRY(entry)) { \
             continue; \
         }
@@ -13,16 +13,16 @@
 #define END_MAP_FOR_EACH }
 
 typedef struct {
-    int x;
-    int y;
-    int z;
-    int w;
-} Entry;
+    int x; // the x position of the block
+    int y; // the y position of the block
+    int z; // the z position of the block
+    int w; // the texture of the block
+} Block;
 
 typedef struct {
-    unsigned int mask;
-    unsigned int size;
-    Entry *data;
+    unsigned int mask; // the size of the array
+    unsigned int size; // the amount of blocks
+    Block *data; // the hash_map for the blocks data
 } Map;
 
 void map_alloc(Map *map);
