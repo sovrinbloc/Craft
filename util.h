@@ -15,6 +15,8 @@
 #define ABS(x) ((x) < 0 ? (-(x)) : (x))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MAX_TEXTURES 16
+#define TEXTURE_HEIGHT 3
 
 typedef struct {
     unsigned int frames;
@@ -48,12 +50,12 @@ void mat_ortho(
     float left, float right, float bottom, float top, float near, float far);
 
 void make_plant(
-    float *vertex, float *normal, float *texture,
-    float x, float y, float z, float n, int w, float rotation);
+        float *vertex, float *normal, float *texture,
+        float x, float y, float z, float n, int block_texture, float rotation);
 void make_cube(
-    float *vertex, float *normal, float *texture,
-    int left, int right, int top, int bottom, int front, int back,
-    float x, float y, float z, float n, int w);
+        float *vector, float *normal, float *texture,
+        int left, int right, int top, int bottom, int front, int back,
+        float x, float y, float z, float n, int w);
 void make_cube_wireframe(float *vertex, float x, float y, float z, float n);
 
 void load_png_texture(const char *file_name);

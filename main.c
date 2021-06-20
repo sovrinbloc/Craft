@@ -64,7 +64,7 @@ static int flying = 0;
 static int block_type = Grass;
 static int ortho = 0;
 static float fov = 65.0;
-static int debug_mode = 1;
+static int debug = 1;
 // buffer objects
 // whatis: Buffer Objects are OpenGL Objects that store an array of
 //  unformatted memory allocated by the OpenGL context (AKA the GPU).
@@ -73,7 +73,7 @@ static int debug_mode = 1;
 //  https://www.khronos.org/opengl/wiki/Buffer_Object
 //
 //
-// @var uv_coords_buffer
+// @var uv_coords_buffer_data
 // When texturing a mesh, you need a way to tell to OpenGL which part of the image has to be used for each triangle. This is done with UV coordinates.
 // Each vertex can have, on top of its position, a couple of floats, U and V. These coordinates are used to access the texture, in the following way :
 // http://www.opengl-tutorial.org/assets/images/tuto-5-textured-cube/UVintro.png
@@ -83,7 +83,7 @@ static int debug_mode = 1;
 // @var int q : the position x of the person divided by max chunks :
 //  floorf(roundf(char_z) / CHUNK_SIZE)
 // @var position_buffer
-// @var normal_buffer
+// @var normal_buffer_data
 // whatis: A chunk is a 256-block tall, 16×16 segment of a world (256x16x16).
 //  Chunks are the method used by the world generator to divide maps into manageable pieces.
 typedef struct {
@@ -92,8 +92,8 @@ typedef struct {
     int q; // z location on the map
     int faces; // whatis: i don't know what faces is
     GLuint position_buffer; // whatis: i am not sure what the position buffer is
-    GLuint normal_buffer; // whatis: i don't know what this is
-    GLuint uv_coords_buffer; // storing texture coordinates
+    GLuint normal_buffer_data; // whatis: i don't know what this is
+    GLuint uv_coords_buffer_data; // storing texture coordinates
 } Chunk;
 
 int is_plant(int w) {
@@ -538,16 +538,16 @@ void make_world(Map *map, int x_chunk_pos, int z_chunk_pos) {
 
 // make_single_cube
 //
-// @var GLuint *position_buffer
-// @var GLuint *normal_buffer
-// @var GLuint *uv_coords_buffer
+// @var GLuint *position_buffer_data
+// @var GLuint *normal_buffer_data
+// @var GLuint *uv_coords_buffer_data
 void make_single_cube(
-        GLuint *position_buffer, GLuint *normal_buffer, GLuint *uv_buffer, int w)
+        GLuint *position_buffer_data, GLuint *normal_buffer_data, GLuint *texture_buffer_data, int w)
 {
     int faces = 6;
-    glDeleteBuffers(1, position_buffer);
-    glDeleteBuffers(1, normal_buffer);
-    glDeleteBuffers(1, uv_buffer);
+    glDeleteBuffers(1, position_buffer_data);
+    glDeleteBuffers(1, normal_buffer_data);
+    glDeleteBuffers(1, texture_buffer_data);
     GLfloat *vertices_data = malloc(sizeof(GLfloat) * faces * 18);
     GLfloat *normal_data = malloc(sizeof(GLfloat) * faces * 18);
     GLfloat *texture_data = malloc(sizeof(GLfloat) * faces * 12);
@@ -557,17 +557,17 @@ void make_single_cube(
             texture_data,
             1, 1, 1, 1, 1, 1,
             0, 0, 0, 0.5, w);
-    *position_buffer = make_buffer(
+    *position_buffer_data = make_buffer(
             GL_ARRAY_BUFFER,
             sizeof(GLfloat) * faces * 18,
             vertices_data
     );
-    *normal_buffer = make_buffer(
+    *normal_buffer_data = make_buffer(
             GL_ARRAY_BUFFER,
             sizeof(GLfloat) * faces * 18,
             normal_data
     );
-    *uv_buffer = make_buffer(
+    *texture_buffer_data = make_buffer(
             GL_ARRAY_BUFFER,
             sizeof(GLfloat) * faces * 12,
             texture_data
@@ -578,7 +578,7 @@ void make_single_cube(
 }
 
 void draw_single_cube(
-        GLuint position_buffer, GLuint normal_buffer, GLuint uv_buffer,
+        GLuint position_buffer, GLuint normal_buffer_data, GLuint uv_buffer,
         GLuint position_loc, GLuint normal_loc, GLuint uv_loc)
 {
     glEnableVertexAttribArray(position_loc);
@@ -586,7 +586,7 @@ void draw_single_cube(
     glEnableVertexAttribArray(uv_loc);
     glBindBuffer(GL_ARRAY_BUFFER, position_buffer);
     glVertexAttribPointer(position_loc, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glBindBuffer(GL_ARRAY_BUFFER, normal_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, normal_buffer_data);
     glVertexAttribPointer(normal_loc, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glBindBuffer(GL_ARRAY_BUFFER, uv_buffer);
     glVertexAttribPointer(uv_loc, 2, GL_FLOAT, GL_FALSE, 0, 0);
@@ -624,8 +624,8 @@ void update_chunk(Chunk *chunk) {
 
     if (chunk->faces) {
         glDeleteBuffers(1, &chunk->position_buffer);
-        glDeleteBuffers(1, &chunk->normal_buffer);
-        glDeleteBuffers(1, &chunk->uv_coords_buffer);
+        glDeleteBuffers(1, &chunk->normal_buffer_data);
+        glDeleteBuffers(1, &chunk->uv_coords_buffer_data);
     }
 
     int faces = 0; // the amount of faces visible
@@ -670,6 +670,31 @@ void update_chunk(Chunk *chunk) {
                         e->x, e->y, e->z, 0.5, e->w, rotation);
             }
             else {
+                if (debug) {
+                    printf("make_cube A(\n"
+                           "                        vertices_data + position_offset,\n"
+                           "                        normal_data + position_offset,\n"
+                           "                        texture_data + uv_offset,\n"
+                           "                        f1, f2, f3, f4, f5, f6,\n"
+                           "                        e->x, e->y, e->z, 0.5, e->w);\n\n"
+                           "make_cube B(\n"
+                           "                        vertices_data + %i,\n"
+                           "                        normal_data + %i,\n"
+                           "                        texture_data + %i,\n"
+                           "                        f1, f2, f3, f4, f5, f6,\n"
+                           "                        e->x, e->y, e->z, 0.5, e->w);\n\n"
+                           "make_cube C(\n"
+                           "                        %p,\n"
+                           "                        %p,\n"
+                           "                        %p,\n"
+                           "                        %i, %i, %i, %i, %i, %i,\n"
+                           "                        %d, %d, %d, 0.5, %d);\n\n\n", position_offset, position_offset, uv_offset,
+                           vertices_data + position_offset,
+                           normal_data + position_offset,
+                           texture_data + uv_offset,
+                           f1, f2, f3, f4, f5, f6,
+                           e->x, e->y, e->z,  e->w);
+                }
                 make_cube(
                         vertices_data + position_offset,
                         normal_data + position_offset,
@@ -702,8 +727,8 @@ void update_chunk(Chunk *chunk) {
 
     chunk->faces = faces;
     chunk->position_buffer = position_buffer;
-    chunk->normal_buffer = normal_buffer;
-    chunk->uv_coords_buffer = uv_buffer;
+    chunk->normal_buffer_data = normal_buffer;
+    chunk->uv_coords_buffer_data = uv_buffer;
 }
 
 void make_chunk(Chunk *chunk, int x_chunk_pos, int z_chunk_pos) {
@@ -725,9 +750,9 @@ void draw_chunk(
     glEnableVertexAttribArray(uv_loc);
     glBindBuffer(GL_ARRAY_BUFFER, chunk->position_buffer);
     glVertexAttribPointer(position_loc, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glBindBuffer(GL_ARRAY_BUFFER, chunk->normal_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, chunk->normal_buffer_data);
     glVertexAttribPointer(normal_loc, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glBindBuffer(GL_ARRAY_BUFFER, chunk->uv_coords_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, chunk->uv_coords_buffer_data);
     glVertexAttribPointer(uv_loc, 2, GL_FLOAT, GL_FALSE, 0, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glDrawArrays(GL_TRIANGLES, 0, chunk->faces * 6);
@@ -761,7 +786,7 @@ void ensure_chunks(Chunk *chunks, int *chunk_count, int x_char_map, int z_char_m
         // whatis: this functionality removes the chunk that is no longer needed
         //  and replaces it with the last chunk made.
         if (chunk_distance(chunk, x_char_map, z_char_map) >= DELETE_CHUNK_RADIUS) {
-            if (debug_mode) {
+            if (debug) {
                 printf("the chunk is greater than the range radius distance of 32 chunks\n");
                 printf("the chunk->data.x = %u chunk->data.y = %u chunk->data.z = %u chunk->data.w = %u \n"
                        "chunk->x_char_map = %u chunk->z_char_map = %u chunk->map.mask = %u chunk->map.size = %u chunk->faces = %u\n",
@@ -770,24 +795,30 @@ void ensure_chunks(Chunk *chunks, int *chunk_count, int x_char_map, int z_char_m
             }
             map_free(&chunk->map); // remove the chunk that doesn't matter
             glDeleteBuffers(1, &chunk->position_buffer);
-            glDeleteBuffers(1, &chunk->normal_buffer);
-            glDeleteBuffers(1, &chunk->uv_coords_buffer);
+            glDeleteBuffers(1, &chunk->normal_buffer_data);
+            glDeleteBuffers(1, &chunk->uv_coords_buffer_data);
             Chunk *other = chunks + (count - 1); // last chunk made
-            printf("the other->data.x = %u other->data.y = %u other->data.z = %u other->data.w = %u \n"
-                   "other->x_char_map = %u other->z_char_map = %u other->map.mask = %u other->map.size = %u other->faces = %u\n",
-                   other->map.data->x, other->map.data->y, other->map.data->z, other->map.data->w,
-                   other->p, other->q, other->map.mask, other->map.size, other->faces);
+            if (debug) {
+
+                printf("the other->data.x = %u other->data.y = %u other->data.z = %u other->data.w = %u \n"
+                       "other->x_char_map = %u other->z_char_map = %u other->map.mask = %u other->map.size = %u other->faces = %u\n",
+                       other->map.data->x, other->map.data->y, other->map.data->z, other->map.data->w,
+                       other->p, other->q, other->map.mask, other->map.size, other->faces);
+            }
             chunk->map = other->map; // changes this chunk to the last chunk
             chunk->p = other->p;
             chunk->q = other->q;
             chunk->faces = other->faces;
             chunk->position_buffer = other->position_buffer;
-            chunk->normal_buffer = other->normal_buffer;
-            chunk->uv_coords_buffer = other->uv_coords_buffer;
-            printf("the chunk->data.x = %u chunk->data.y = %u chunk->data.z = %u chunk->data.w = %u \n"
-                   "chunk->x_char_map = %u chunk->z_char_map = %u chunk->map.mask = %u chunk->map.size = %u chunk->faces = %u\n",
-                   chunk->map.data->x, chunk->map.data->y, chunk->map.data->z, chunk->map.data->w,
-                   chunk->p, chunk->q, chunk->map.mask, chunk->map.size, chunk->faces);
+            chunk->normal_buffer_data = other->normal_buffer_data;
+            chunk->uv_coords_buffer_data = other->uv_coords_buffer_data;
+            if (debug) {
+
+                printf("the chunk->data.x = %u chunk->data.y = %u chunk->data.z = %u chunk->data.w = %u \n"
+                       "chunk->x_char_map = %u chunk->z_char_map = %u chunk->map.mask = %u chunk->map.size = %u chunk->faces = %u\n",
+                       chunk->map.data->x, chunk->map.data->y, chunk->map.data->z, chunk->map.data->w,
+                       chunk->p, chunk->q, chunk->map.mask, chunk->map.size, chunk->faces);
+            }
             count--;
         }
     }
@@ -1005,7 +1036,7 @@ int main(int argc, char **argv) {
     GLuint line_position_loc = glGetAttribLocation(line_program, "position");
 
     GLuint item_position_buffer = 0;
-    GLuint item_normal_buffer = 0;
+    GLuint item_normal_buffer_data = 0;
     GLuint item_uv_buffer = 0; // texture corrdinates UxV = XxY (coords)
     int previous_block_type = 0;
 
@@ -1083,7 +1114,7 @@ int main(int argc, char **argv) {
             //  turn into rx = -3. * 0.0025 =
             rx += (mx - mouse_dx) * m; // the movement of the camera
             ry -= (my - mouse_dy) * m;
-            if (debug_mode) {
+            if (debug) {
                 if (rx != rxTmp || ry != ryTmp) {
                     rxTmp = rx;
                     ryTmp = ry;
@@ -1114,7 +1145,7 @@ int main(int argc, char **argv) {
             if (hit_test(chunks, chunk_count, 0, char_x, char_y, char_z, rx, ry,
                          &hx, &hy, &hz))
             {
-                if (debug_mode) {
+                if (debug) {
                     printf("hit_test succeeded");
                 }
                 if (hy > 0) {
@@ -1195,7 +1226,7 @@ int main(int argc, char **argv) {
         int p = floorf(roundf(char_x) / CHUNK_SIZE);
         int q = floorf(roundf(char_z) / CHUNK_SIZE);
         ensure_chunks(chunks, &chunk_count, p, q, 0);
-        if (debug_mode && tmpP != p || tmpQ != q) {
+        if (debug && tmpP != p || tmpQ != q) {
             printf("modified chunk position\n");
             printf("chunk_count %d, p = floorf(roundf(char_x) / CHUNK_SIZE)\n q = floorf(roundf(char_z) / CHUNK_SIZE)\n", chunk_count);
             printf("chunk_count %d, %d = floorf(roundf(%f) / %i)\n %d = floorf(roundf(%f) / %i)\n\n",
@@ -1227,12 +1258,14 @@ int main(int argc, char **argv) {
         // render focused block wireframe
         int hx, hy, hz;
         int hw = hit_test(chunks, chunk_count, 0, char_x, char_y, char_z, rx, ry, &hx, &hy, &hz);
-//        printf("hit_test without clicking(%d %f %f %f %f %f %f %d %d %d) \n",
-//               chunks->map.data->w,
-//               chunks->map.data->x,
-//               chunks->map.data->y,
-//               chunks->map.data->z,
-//               chunk_count, 0, char_x, char_y, char_z, rx, ry, hx, hy, hz);
+        if (debug) {
+            printf("hit_test without clicking(%d %f %f %f %f %f %f %d %d %d) \n",
+                   chunks->map.data->w,
+                   chunks->map.data->x,
+                   chunks->map.data->y,
+                   chunks->map.data->z,
+                   chunk_count, 0, char_x, char_y, char_z, rx, ry, hx, hy, hz);
+        }
         if (is_obstacle(hw)) {
             glUseProgram(line_program);
             glLineWidth(1);
@@ -1261,7 +1294,7 @@ int main(int argc, char **argv) {
         if (block_type != previous_block_type) {
             previous_block_type = block_type;
             make_single_cube(
-                    &item_position_buffer, &item_normal_buffer, &item_uv_buffer,
+                    &item_position_buffer, &item_normal_buffer_data, &item_uv_buffer,
                     block_type);
         }
         glUseProgram(block_program);
@@ -1271,7 +1304,7 @@ int main(int argc, char **argv) {
         glUniform1f(timer_loc, glfwGetTime());
         glDisable(GL_DEPTH_TEST);
         draw_single_cube(
-                item_position_buffer, item_normal_buffer, item_uv_buffer,
+                item_position_buffer, item_normal_buffer_data, item_uv_buffer,
                 position_loc, normal_loc, uv_loc);
         glEnable(GL_DEPTH_TEST);
 
