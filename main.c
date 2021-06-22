@@ -64,7 +64,7 @@ static int flying = 0;
 static int block_type = Grass;
 static int ortho = 0;
 static float fov = 65.0;
-static int debug = 1;
+static int debug = 0;
 // buffer objects
 // whatis: Buffer Objects are OpenGL Objects that store an array of
 //  unformatted memory allocated by the OpenGL context (AKA the GPU).
@@ -551,7 +551,13 @@ void make_single_cube(
     GLfloat *vertices_data = malloc(sizeof(GLfloat) * faces * 18);
     GLfloat *normal_data = malloc(sizeof(GLfloat) * faces * 18);
     GLfloat *texture_data = malloc(sizeof(GLfloat) * faces * 12);
-    make_cube(
+//    make_cube(
+//            vertices_data,
+//            normal_data,
+//            texture_data,
+//            1, 1, 1, 1, 1, 1,
+//            0, 0, 0, 0.5, w);
+    josephs_cube(
             vertices_data,
             normal_data,
             texture_data,
@@ -695,12 +701,18 @@ void update_chunk(Chunk *chunk) {
                            f1, f2, f3, f4, f5, f6,
                            e->x, e->y, e->z,  e->w);
                 }
-                make_cube(
+                josephs_cube(
                         vertices_data + position_offset,
                         normal_data + position_offset,
                         texture_data + uv_offset,
                         f1, f2, f3, f4, f5, f6,
                         e->x, e->y, e->z, 0.5, e->w);
+//                make_cube(
+//                        vertices_data + position_offset,
+//                        normal_data + position_offset,
+//                        texture_data + uv_offset,
+//                        f1, f2, f3, f4, f5, f6,
+//                        e->x, e->y, e->z, 0.5, e->w);
             }
             position_offset += total * 18;
             uv_offset += total * 12;

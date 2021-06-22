@@ -305,6 +305,91 @@ void mat_ortho(
     matrix[15] = 1;
 }
 
+void make_cube_faces( float *vector, float *normal, float *texture,
+                      int left, int right, int top, int bottom, int front, int back,
+                      float x, float y, float z, float offset, int w) {
+    float *vertex_data = vector;
+    float *normal_data = normal;
+    float *texture_data = texture;
+    float block_size = 1.0f / MAX_TEXTURES;
+    w--;
+
+    float a = 0;
+    float b = block_size;
+
+    float u_offset, v_offset;
+    float ou, ov;
+    ou = (w % MAX_TEXTURES) * block_size; // which texture to select * the "normal" percentage
+    ov = (w / MAX_TEXTURES * TEXTURE_HEIGHT) * block_size; // height offset (.0625 * 3) * .0625 (height)
+
+    float vertices[6][6][3] =
+            {
+                    // left
+                    {{-1, -1, -1}, {-1, +1, +1}, {-1, +1, -1}, {-1, -1, -1}, {-1, -1, +1}, {-1, +1, +1}},
+                    // right
+                    {{+1, +1, -1}, {+1, -1, +1}, {+1, -1, -1}, {+1, +1, -1}, {+1, +1, +1}, {+1, -1, +1}},
+                    // top
+                    {{-1, -1, +1}, {+1, -1, -1}, {+1, -1, +1}, {-1, -1, +1}, {-1, -1, -1}, {+1, -1, -1}},
+                    // bottom
+                    {{-1, +1, -1}, {+1, +1, +1}, {+1, +1, -1}, {-1, +1, -1}, {-1, +1, +1}, {+1, +1, +1}},
+                    // front
+                    {{+1, -1, +1}, {-1, +1, +1}, {-1, -1, +1}, {+1, -1, +1}, {+1, +1, +1}, {-1, +1, +1}},
+                    // back
+                    {{-1, -1, -1}, {+1, +1, -1}, {+1, -1, -1}, {-1, -1, -1}, {-1, +1, -1}, {+1, +1, -1}},
+            };
+
+    float normals[6][6][3] =
+            {
+                    // left
+                    {{-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}},
+                    // right
+                    {{+1, 0, 0}, {+1, 0, 0}, {+1, 0, 0}, {+1, 0, 0}, {+1, 0, 0}, {+1, 0, 0}},
+                    // top
+                    {{0, +1, 0}, {0, +1, 0}, {0, +1, 0}, {0, +1, 0}, {0, +1, 0}, {0, +1, 0}},
+                    // bottom
+                    {{0, -1, 0}, {0, -1, 0}, {0, -1, 0}, {0, -1, 0}, {0, -1, 0}, {0, -1, 0}},
+                    // front
+                    {{0, 0, -1}, {0, 0, -1}, {0, 0, -1}, {0, 0, -1}, {0, 0, -1}, {0, 0, -1}},
+                    // back
+                    {{0, 0, +1}, {0, 0, +1}, {0, 0, +1}, {0, 0, +1}, {0, 0, +1}, {0, 0, +1}},
+            };
+
+
+    float uvs[6][6][2] = {
+            // left
+            {{-1, -1}, {+1, +1}, {-1, +1}, {-1, -1}, {+1, -1}, {+1, +1}},
+            // right
+            {{+1, -1}, {-1, +1}, {+1, +1}, {+1, -1}, {-1, -1}, {-1, +1}},
+            // top
+            {{-1, -1}, {+1, +1}, {+1, -1}, {-1, -1}, {-1, +1}, {+1, +1}},
+            // bottom
+            {{-1, +1}, {+1, -1}, {+1, +1}, {-1, +1}, {-1, -1}, {+1, -1}},
+            // front
+            {{+1, -1}, {-1, +1}, {-1, -1}, {+1, -1}, {+1, +1}, {+1, +1}},
+            // back
+            {{-1, -1}, {+1, +1}, {+1, -1}, {-1, -1}, {-1, +1}, {+1, +1}},
+    };
+    for (int i = 0; i < 6; i++) {
+        for (int j = 0; j < 6; ++j) {
+            if (i <= 1 || i >= 4) {
+                u_offset = ou; v_offset = ov + block_size;
+            } else if (i == 2) {
+                u_offset = ou; v_offset = ov + block_size + block_size;
+            } else {
+                u_offset = ou; v_offset = ov;
+            }
+            (*vertex_data++) = x + offset * vertices[i][j][0];
+            (*vertex_data++) = y + offset * vertices[i][j][1];
+            (*vertex_data++) = z + offset * vertices[i][j][2];
+            (*normal_data++) = normals[i][j][0];
+            (*normal_data++) = normals[i][j][1];
+            (*normal_data++) = normals[i][j][2];
+            (*texture_data++) = u_offset + (uvs[i][j][0] ? b : a);
+            (*texture_data++) = v_offset + (uvs[i][j][1] ? b : a);
+        }
+    }
+}
+
 // make_plant
 //
 // @var float *vertex
@@ -316,6 +401,174 @@ void mat_ortho(
 // @var float n
 // @var int block_texture
 // @var float rotation
+void josephs_cube (
+        float *vector, float *normal, float *texture,
+        int left, int right, int top, int bottom, int front, int back,
+        float x, float y, float z, float offset, int w)
+{
+    float *vertex_data = vector;
+    float *normal_data = normal;
+    float *texture_data = texture;
+    float block_size = 1.0f / MAX_TEXTURES;
+    w--;
+
+    float a = 0;
+    float b = block_size;
+
+    float u_offset, v_offset;
+    float ou, ov;
+    ou = (w % MAX_TEXTURES) * block_size; // which texture to select * the "normal" percentage
+    ov = (w / MAX_TEXTURES * TEXTURE_HEIGHT) * block_size; // height offset (.0625 * 3) * .0625 (height)
+
+
+
+
+    if (left) {
+        u_offset = ou; v_offset = ov + block_size;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y - offset; *(vertex_data++) = z - offset;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y + offset; *(vertex_data++) = z + offset;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y + offset; *(vertex_data++) = z - offset;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y - offset; *(vertex_data++) = z - offset;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y - offset; *(vertex_data++) = z + offset;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y + offset; *(vertex_data++) = z + offset;
+
+        *(normal_data++) = -1; *(normal_data++) = 0; *(normal_data++) = 0;
+        *(normal_data++) = -1; *(normal_data++) = 0; *(normal_data++) = 0;
+        *(normal_data++) = -1; *(normal_data++) = 0; *(normal_data++) = 0;
+        *(normal_data++) = -1; *(normal_data++) = 0; *(normal_data++) = 0;
+        *(normal_data++) = -1; *(normal_data++) = 0; *(normal_data++) = 0;
+        *(normal_data++) = -1; *(normal_data++) = 0; *(normal_data++) = 0;
+
+        *(texture_data++) = a + u_offset; *(texture_data++) = a + v_offset;
+        *(texture_data++) = b + u_offset; *(texture_data++) = b + v_offset;
+        *(texture_data++) = a + u_offset; *(texture_data++) = b + v_offset;
+        *(texture_data++) = a + u_offset; *(texture_data++) = a + v_offset;
+        *(texture_data++) = b + u_offset; *(texture_data++) = a + v_offset;
+        *(texture_data++) = b + u_offset; *(texture_data++) = b + v_offset;
+    }
+
+
+    if (right) {
+        u_offset = ou; v_offset = ov + block_size;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y + offset; *(vertex_data++) = z - offset;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y - offset; *(vertex_data++) = z + offset;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y - offset; *(vertex_data++) = z - offset;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y + offset; *(vertex_data++) = z - offset;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y + offset; *(vertex_data++) = z + offset;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y - offset; *(vertex_data++) = z + offset;
+
+        *(normal_data++) = 1; *(normal_data++) = 0; *(normal_data++) = 0;
+        *(normal_data++) = 1; *(normal_data++) = 0; *(normal_data++) = 0;
+        *(normal_data++) = 1; *(normal_data++) = 0; *(normal_data++) = 0;
+        *(normal_data++) = 1; *(normal_data++) = 0; *(normal_data++) = 0;
+        *(normal_data++) = 1; *(normal_data++) = 0; *(normal_data++) = 0;
+        *(normal_data++) = 1; *(normal_data++) = 0; *(normal_data++) = 0;
+
+        *(texture_data++) = b + u_offset; *(texture_data++) = b + v_offset;
+        *(texture_data++) = a + u_offset; *(texture_data++) = a + v_offset;
+        *(texture_data++) = b + u_offset; *(texture_data++) = a + v_offset;
+        *(texture_data++) = b + u_offset; *(texture_data++) = b + v_offset;
+        *(texture_data++) = a + u_offset; *(texture_data++) = b + v_offset;
+        *(texture_data++) = a + u_offset; *(texture_data++) = a + v_offset;
+    }
+
+    if (top) {
+        u_offset = ou; v_offset = ov + block_size + block_size;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y + offset; *(vertex_data++) = z - offset;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y + offset; *(vertex_data++) = z + offset;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y + offset; *(vertex_data++) = z - offset;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y + offset; *(vertex_data++) = z - offset;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y + offset; *(vertex_data++) = z + offset;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y + offset; *(vertex_data++) = z + offset;
+
+        *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
+
+        *(texture_data++) = a + u_offset; *(texture_data++) = a + v_offset;
+        *(texture_data++) = b + u_offset; *(texture_data++) = b + v_offset;
+        *(texture_data++) = b + u_offset; *(texture_data++) = a + v_offset;
+        *(texture_data++) = a + u_offset; *(texture_data++) = a + v_offset;
+        *(texture_data++) = a + u_offset; *(texture_data++) = b + v_offset;
+        *(texture_data++) = b + u_offset; *(texture_data++) = b + v_offset;
+    }
+
+    if (bottom) {
+        u_offset = ou; v_offset = ov;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y - offset; *(vertex_data++) = z + offset;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y - offset; *(vertex_data++) = z - offset;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y - offset; *(vertex_data++) = z + offset;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y - offset; *(vertex_data++) = z + offset;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y - offset; *(vertex_data++) = z - offset;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y - offset; *(vertex_data++) = z - offset;
+
+        *(normal_data++) = 0; *(normal_data++) = -1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = -1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = -1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = -1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = -1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = -1; *(normal_data++) = 0;
+
+        *(texture_data++) = a + u_offset; *(texture_data++) = b + v_offset;
+        *(texture_data++) = b + u_offset; *(texture_data++) = a + v_offset;
+        *(texture_data++) = b + u_offset; *(texture_data++) = b + v_offset;
+        *(texture_data++) = a + u_offset; *(texture_data++) = b + v_offset;
+        *(texture_data++) = a + u_offset; *(texture_data++) = a + v_offset;
+        *(texture_data++) = b + u_offset; *(texture_data++) = a + v_offset;
+    }
+
+    if (front) {
+        u_offset = ou; v_offset = ov + block_size;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y - offset; *(vertex_data++) = z + offset;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y + offset; *(vertex_data++) = z + offset;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y - offset; *(vertex_data++) = z + offset;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y - offset; *(vertex_data++) = z + offset;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y + offset; *(vertex_data++) = z + offset;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y + offset; *(vertex_data++) = z + offset;
+
+        *(normal_data++) = 0; *(normal_data++) = -1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = -1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = -1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = -1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = -1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = -1; *(normal_data++) = 0;
+
+        *(texture_data++) = b + u_offset; *(texture_data++) = a + v_offset;
+        *(texture_data++) = a + u_offset; *(texture_data++) = b + v_offset;
+        *(texture_data++) = a + u_offset; *(texture_data++) = a + v_offset;
+        *(texture_data++) = b + u_offset; *(texture_data++) = a + v_offset;
+        *(texture_data++) = b + u_offset; *(texture_data++) = b + v_offset;
+        *(texture_data++) = a + u_offset; *(texture_data++) = b + v_offset;
+    }
+
+    if (back) {
+        u_offset = ou; v_offset = ov + block_size;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y - offset; *(vertex_data++) = z - offset;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y + offset; *(vertex_data++) = z - offset;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y - offset; *(vertex_data++) = z - offset;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y - offset; *(vertex_data++) = z - offset;
+        *(vertex_data++) = x - offset; *(vertex_data++) = y + offset; *(vertex_data++) = z - offset;
+        *(vertex_data++) = x + offset; *(vertex_data++) = y + offset; *(vertex_data++) = z - offset;
+
+        *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
+        *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
+
+        *(texture_data++) = b + u_offset; *(texture_data++) = a + v_offset;
+        *(texture_data++) = a + u_offset; *(texture_data++) = b + v_offset;
+        *(texture_data++) = a + u_offset; *(texture_data++) = a + v_offset;
+        *(texture_data++) = b + u_offset; *(texture_data++) = a + v_offset;
+        *(texture_data++) = b + u_offset; *(texture_data++) = b + v_offset;
+        *(texture_data++) = a + u_offset; *(texture_data++) = b + v_offset;
+    }
+
+}
 void make_plant(
         float *vertex, float *normal, float *texture,
         float x, float y, float z, float n, int block_texture, float rotation)
@@ -427,6 +680,15 @@ void make_plant(
 }
 
 // make_cube
+// okay. so basically this was the greatest pain in the ass that could possible have been.
+// allegedly, the unwrapping  needs to invert and transpose various textures, as to map
+// then properly on the cube, they need to be rotated and positioned. so from here, we conclude
+// Top is (U,-W), (but negating Z)
+// Back is standard (U,V) mapping
+// bottom is regular (U,V) mapping
+// Front is negative (-U,V) (X) axis
+// Left is inverse of UV (V,U) mapping
+// Right is Transposing (-V,U)
 // https://conceptartempire.com/uv-mapping-unwrapping/
 //
 // @var float *vector
@@ -441,7 +703,7 @@ void make_plant(
 // @var float x
 // @var float y
 // @var float z
-// @var float n
+// @var float offset
 // @var int w
 //
 // @return vector
@@ -451,7 +713,7 @@ void make_plant(
 void make_cube(
         float *vector, float *normal, float *texture,
         int left, int right, int top, int bottom, int front, int back,
-        float x, float y, float z, float n, int w)
+        float x, float y, float z, float offset, int w)
 {
     float *vector_data = vector;
     float *normal_data = normal;
@@ -459,7 +721,7 @@ void make_cube(
     float s = 1.0f / MAX_TEXTURES; // percentage on map of one texture's width
     float a = 0; // starting point of texture width or height
     float b = s;
-    float du, dv; // u is from left -> right
+    float horizontal_offset, vertical_offset; // u is from left -> right
     float ou, ov; // v is from bottom -> top
     w--; // whatis: subtracts 1 so the texture starts from the origin instead of over one
 
@@ -482,13 +744,13 @@ void make_cube(
     // 108 data points, or 36 (3D) normal_data for the cube
     // 72 data points, or  36 (2D) texture_data for the cube
     if (left) {
-        du = ou; dv = ov + s;
-        *(vector_data++) = x - n; *(vector_data++) = y - n; *(vector_data++) = z - n;
-        *(vector_data++) = x - n; *(vector_data++) = y + n; *(vector_data++) = z + n;
-        *(vector_data++) = x - n; *(vector_data++) = y + n; *(vector_data++) = z - n;
-        *(vector_data++) = x - n; *(vector_data++) = y - n; *(vector_data++) = z - n;
-        *(vector_data++) = x - n; *(vector_data++) = y - n; *(vector_data++) = z + n;
-        *(vector_data++) = x - n; *(vector_data++) = y + n; *(vector_data++) = z + n;
+        horizontal_offset = ou; vertical_offset = ov + s;
+        *(vector_data++) = x - offset; *(vector_data++) = y - offset; *(vector_data++) = z - offset;
+        *(vector_data++) = x - offset; *(vector_data++) = y + offset; *(vector_data++) = z + offset;
+        *(vector_data++) = x - offset; *(vector_data++) = y + offset; *(vector_data++) = z - offset;
+        *(vector_data++) = x - offset; *(vector_data++) = y - offset; *(vector_data++) = z - offset;
+        *(vector_data++) = x - offset; *(vector_data++) = y - offset; *(vector_data++) = z + offset;
+        *(vector_data++) = x - offset; *(vector_data++) = y + offset; *(vector_data++) = z + offset;
         *(normal_data++) = -1; *(normal_data++) = 0; *(normal_data++) = 0;
         *(normal_data++) = -1; *(normal_data++) = 0; *(normal_data++) = 0;
         *(normal_data++) = -1; *(normal_data++) = 0; *(normal_data++) = 0;
@@ -499,21 +761,23 @@ void make_cube(
 
         // hint: z appears to be interchanged with y in pattern
         //   and x's pattern doesn't matter.
-        *(texture_data++) = a + du; *(texture_data++) = a + dv;
-        *(texture_data++) = b + du; *(texture_data++) = b + dv;
-        *(texture_data++) = a + du; *(texture_data++) = b + dv;
-        *(texture_data++) = a + du; *(texture_data++) = a + dv;
-        *(texture_data++) = b + du; *(texture_data++) = a + dv;
-        *(texture_data++) = b + du; *(texture_data++) = b + dv;
+
+
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = b + vertical_offset;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = b + vertical_offset;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = b + vertical_offset;
     }
     if (right) {
-        du = ou; dv = ov + s;
-        *(vector_data++) = x + n; *(vector_data++) = y - n; *(vector_data++) = z - n;
-        *(vector_data++) = x + n; *(vector_data++) = y + n; *(vector_data++) = z + n;
-        *(vector_data++) = x + n; *(vector_data++) = y - n; *(vector_data++) = z + n;
-        *(vector_data++) = x + n; *(vector_data++) = y - n; *(vector_data++) = z - n;
-        *(vector_data++) = x + n; *(vector_data++) = y + n; *(vector_data++) = z - n;
-        *(vector_data++) = x + n; *(vector_data++) = y + n; *(vector_data++) = z + n;
+        horizontal_offset = ou; vertical_offset= ov + s;
+        *(vector_data++) = x + offset; *(vector_data++) = y - offset; *(vector_data++) = z - offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y + offset; *(vector_data++) = z + offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y - offset; *(vector_data++) = z + offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y - offset; *(vector_data++) = z - offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y + offset; *(vector_data++) = z - offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y + offset; *(vector_data++) = z + offset;
         *(normal_data++) = 1; *(normal_data++) = 0; *(normal_data++) = 0;
         *(normal_data++) = 1; *(normal_data++) = 0; *(normal_data++) = 0;
         *(normal_data++) = 1; *(normal_data++) = 0; *(normal_data++) = 0;
@@ -524,45 +788,44 @@ void make_cube(
 
         // hint: z appears to be interchanged with y in pattern
         //   and x's pattern doesn't matter.
-        *(texture_data++) = b + du; *(texture_data++) = a + dv;
-        *(texture_data++) = a + du; *(texture_data++) = b + dv;
-        *(texture_data++) = a + du; *(texture_data++) = a + dv;
-        *(texture_data++) = b + du; *(texture_data++) = a + dv;
-        *(texture_data++) = b + du; *(texture_data++) = b + dv;
-        *(texture_data++) = a + du; *(texture_data++) = b + dv;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = b + vertical_offset;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = b + vertical_offset;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = b + vertical_offset;
     }
     if (top) {
-        du = ou; dv = ov + s + s;
-        *(vector_data++) = x - n; *(vector_data++) = y + n; *(vector_data++) = z - n;
-        *(vector_data++) = x - n; *(vector_data++) = y + n; *(vector_data++) = z + n;
-        *(vector_data++) = x + n; *(vector_data++) = y + n; *(vector_data++) = z + n;
-        *(vector_data++) = x - n; *(vector_data++) = y + n; *(vector_data++) = z - n;
-        *(vector_data++) = x + n; *(vector_data++) = y + n; *(vector_data++) = z + n;
-        *(vector_data++) = x + n; *(vector_data++) = y + n; *(vector_data++) = z - n;
+        horizontal_offset = ou; vertical_offset = ov + s + s;
+        *(vector_data++) = x - offset; *(vector_data++) = y + offset; *(vector_data++) = z - offset;
+        *(vector_data++) = x - offset; *(vector_data++) = y + offset; *(vector_data++) = z + offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y + offset; *(vector_data++) = z + offset;
+        *(vector_data++) = x - offset; *(vector_data++) = y + offset; *(vector_data++) = z - offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y + offset; *(vector_data++) = z + offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y + offset; *(vector_data++) = z - offset;
         *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
         *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
         *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
         *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
         *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
         *(normal_data++) = 0; *(normal_data++) = 1; *(normal_data++) = 0;
-
 
         // hint: the pattern seems to be with x and z, (not y) because it remains the same
-        *(texture_data++) = a + du; *(texture_data++) = b + dv;
-        *(texture_data++) = a + du; *(texture_data++) = a + dv;
-        *(texture_data++) = b + du; *(texture_data++) = a + dv;
-        *(texture_data++) = a + du; *(texture_data++) = b + dv;
-        *(texture_data++) = b + du; *(texture_data++) = a + dv;
-        *(texture_data++) = b + du; *(texture_data++) = b + dv;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = b + vertical_offset;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = b + vertical_offset;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = b + vertical_offset;
     }
     if (bottom) {
-        du = ou; dv = ov + 0;
-        *(vector_data++) = x - n; *(vector_data++) = y - n; *(vector_data++) = z - n;
-        *(vector_data++) = x + n; *(vector_data++) = y - n; *(vector_data++) = z - n;
-        *(vector_data++) = x + n; *(vector_data++) = y - n; *(vector_data++) = z + n;
-        *(vector_data++) = x - n; *(vector_data++) = y - n; *(vector_data++) = z - n;
-        *(vector_data++) = x + n; *(vector_data++) = y - n; *(vector_data++) = z + n;
-        *(vector_data++) = x - n; *(vector_data++) = y - n; *(vector_data++) = z + n;
+        horizontal_offset = ou; vertical_offset = ov + 0;
+        *(vector_data++) = x - offset; *(vector_data++) = y - offset; *(vector_data++) = z - offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y - offset; *(vector_data++) = z - offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y - offset; *(vector_data++) = z + offset;
+        *(vector_data++) = x - offset; *(vector_data++) = y - offset; *(vector_data++) = z - offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y - offset; *(vector_data++) = z + offset;
+        *(vector_data++) = x - offset; *(vector_data++) = y - offset; *(vector_data++) = z + offset;
         *(normal_data++) = 0; *(normal_data++) = -1; *(normal_data++) = 0;
         *(normal_data++) = 0; *(normal_data++) = -1; *(normal_data++) = 0;
         *(normal_data++) = 0; *(normal_data++) = -1; *(normal_data++) = 0;
@@ -572,21 +835,21 @@ void make_cube(
 
 
         // hint: the pattern seems to fit with x, z and negate y
-        *(texture_data++) = a + du; *(texture_data++) = a + dv;
-        *(texture_data++) = b + du; *(texture_data++) = a + dv;
-        *(texture_data++) = b + du; *(texture_data++) = b + dv;
-        *(texture_data++) = a + du; *(texture_data++) = a + dv;
-        *(texture_data++) = b + du; *(texture_data++) = b + dv;
-        *(texture_data++) = a + du; *(texture_data++) = b + dv;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = b + vertical_offset;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = b + vertical_offset;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = b + vertical_offset;
     }
     if (front) {
-        du = ou; dv = ov + s;
-        *(vector_data++) = x - n; *(vector_data++) = y - n; *(vector_data++) = z + n;
-        *(vector_data++) = x + n; *(vector_data++) = y - n; *(vector_data++) = z + n;
-        *(vector_data++) = x + n; *(vector_data++) = y + n; *(vector_data++) = z + n;
-        *(vector_data++) = x - n; *(vector_data++) = y - n; *(vector_data++) = z + n;
-        *(vector_data++) = x + n; *(vector_data++) = y + n; *(vector_data++) = z + n;
-        *(vector_data++) = x - n; *(vector_data++) = y + n; *(vector_data++) = z + n;
+        horizontal_offset = ou; vertical_offset = ov + s;
+        *(vector_data++) = x - offset; *(vector_data++) = y - offset; *(vector_data++) = z + offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y - offset; *(vector_data++) = z + offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y + offset; *(vector_data++) = z + offset;
+        *(vector_data++) = x - offset; *(vector_data++) = y - offset; *(vector_data++) = z + offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y + offset; *(vector_data++) = z + offset;
+        *(vector_data++) = x - offset; *(vector_data++) = y + offset; *(vector_data++) = z + offset;
         *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = -1;
         *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = -1;
         *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = -1;
@@ -596,22 +859,22 @@ void make_cube(
 
 
         // hint: u seems to link with x, and v with y (but the opposite)
-        *(texture_data++) = b + du; *(texture_data++) = a + dv;
-        *(texture_data++) = a + du; *(texture_data++) = a + dv;
-        *(texture_data++) = a + du; *(texture_data++) = b + dv;
-        *(texture_data++) = b + du; *(texture_data++) = a + dv;
-        *(texture_data++) = a + du; *(texture_data++) = b + dv;
-        *(texture_data++) = b + du; *(texture_data++) = b + dv;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = b + vertical_offset;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = b + vertical_offset;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = b + vertical_offset;
 
     }
     if (back) {
-        du = ou; dv = ov + s;
-        *(vector_data++) = x - n; *(vector_data++) = y - n; *(vector_data++) = z - n;
-        *(vector_data++) = x + n; *(vector_data++) = y + n; *(vector_data++) = z - n;
-        *(vector_data++) = x + n; *(vector_data++) = y - n; *(vector_data++) = z - n;
-        *(vector_data++) = x - n; *(vector_data++) = y - n; *(vector_data++) = z - n;
-        *(vector_data++) = x - n; *(vector_data++) = y + n; *(vector_data++) = z - n;
-        *(vector_data++) = x + n; *(vector_data++) = y + n; *(vector_data++) = z - n;
+        horizontal_offset = ou; vertical_offset = ov + s;
+        *(vector_data++) = x - offset; *(vector_data++) = y - offset; *(vector_data++) = z - offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y + offset; *(vector_data++) = z - offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y - offset; *(vector_data++) = z - offset;
+        *(vector_data++) = x - offset; *(vector_data++) = y - offset; *(vector_data++) = z - offset;
+        *(vector_data++) = x - offset; *(vector_data++) = y + offset; *(vector_data++) = z - offset;
+        *(vector_data++) = x + offset; *(vector_data++) = y + offset; *(vector_data++) = z - offset;
         *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = 1;
         *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = 1;
         *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = 1;
@@ -620,12 +883,12 @@ void make_cube(
         *(normal_data++) = 0; *(normal_data++) = 0; *(normal_data++) = 1;
 
         // hint: the texture u seems to link with x, and v with y
-        *(texture_data++) = a + du; *(texture_data++) = a + dv;
-        *(texture_data++) = b + du; *(texture_data++) = b + dv;
-        *(texture_data++) = b + du; *(texture_data++) = a + dv;
-        *(texture_data++) = a + du; *(texture_data++) = a + dv;
-        *(texture_data++) = a + du; *(texture_data++) = b + dv;
-        *(texture_data++) = b + du; *(texture_data++) = b + dv;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = b + vertical_offset;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = a + vertical_offset;
+        *(texture_data++) = a + horizontal_offset; *(texture_data++) = b + vertical_offset;
+        *(texture_data++) = b + horizontal_offset; *(texture_data++) = b + vertical_offset;
 
     }
 }

@@ -55,7 +55,11 @@ void make_plant(
 void make_cube(
         float *vector, float *normal, float *texture,
         int left, int right, int top, int bottom, int front, int back,
-        float x, float y, float z, float n, int w);
+        float x, float y, float z, float offset, int w);
+void josephs_cube(
+        float *vector, float *normal, float *texture,
+        int left, int right, int top, int bottom, int front, int back,
+        float x, float y, float z, float offset, int w);
 void make_cube_wireframe(float *vertex, float x, float y, float z, float n);
 
 void load_png_texture(const char *file_name);
