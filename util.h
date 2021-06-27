@@ -52,11 +52,7 @@ void mat_ortho(
 void make_plant(
         float *vertex, float *normal, float *texture,
         float x, float y, float z, float n, int block_texture, float rotation);
-void make_cube(
-        float *vector, float *normal, float *texture,
-        int left, int right, int top, int bottom, int front, int back,
-        float x, float y, float z, float offset, int w);
-void josephs_cube(
+void make_cube_faces(
         float *vector, float *normal, float *texture,
         int left, int right, int top, int bottom, int front, int back,
         float x, float y, float z, float offset, int w);

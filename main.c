@@ -329,32 +329,32 @@ int highest_block(Chunk *chunks, int chunk_count, float x, float z) {
 
 int _hit_test(
         Map *map, float max_distance, int previous,
-        float x, float y, float z,
-        float vx, float vy, float vz,
-        int *hx, int *hy, int *hz)
+        float char_x, float char_y, float char_z,
+        float cam_front_x, float cam_front_y, float cam_front_z,
+        int *hit_x, int *hit_y, int *hit_z)
 {
-    int m = 8;
-    int px = 0;
-    int py = 0;
-    int pz = 0;
-    for (int i = 0; i < max_distance * m; i++) {
-        int nx = roundf(x);
-        int ny = roundf(y);
-        int nz = roundf(z);
-        if (nx != px || ny != py || nz != pz) {
-            int hw = map_get(map, nx, ny, nz);
-            if (hw > 0) {
+    int max_dist = 8;
+    int previous_x = 0;
+    int previous_y = 0;
+    int previous_z = 0;
+    for (int i = 0; i < max_distance * max_dist; i++) {
+        int nearest_x = roundf(char_x);
+        int nearest_y = roundf(char_y);
+        int nearest_z = roundf(char_z);
+        if (nearest_x != previous_x || nearest_y != previous_y || nearest_z != previous_z) {
+            int block_texture = map_get(map, nearest_x, nearest_y, nearest_z);
+            if (block_texture > 0) {
                 if (previous) {
-                    *hx = px; *hy = py; *hz = pz;
+                    *hit_x = previous_x; *hit_y = previous_y; *hit_z = previous_z;
                 }
                 else {
-                    *hx = nx; *hy = ny; *hz = nz;
+                    *hit_x = nearest_x; *hit_y = nearest_y; *hit_z = nearest_z;
                 }
-                return hw;
+                return block_texture;
             }
-            px = nx; py = ny; pz = nz;
+            previous_x = nearest_x; previous_y = nearest_y; previous_z = nearest_z;
         }
-        x += vx / m; y += vy / m; z += vz / m;
+        char_x += cam_front_x / max_dist; char_y += cam_front_y / max_dist; char_z += cam_front_z / max_dist;
     }
     return 0;
 }
@@ -377,31 +377,31 @@ int _hit_test(
 int hit_test(
         Chunk *chunks, int chunk_count, int previous,
         float char_x, float char_y, float char_z, float rx, float ry,
-        int *bx, int *by, int *bz)
+        int *best_x, int *best_y, int *best_z)
 {
     int result = 0;
     float best = 0;
     int p = floorf(roundf(char_x) / CHUNK_SIZE);
     int q = floorf(roundf(char_z) / CHUNK_SIZE);
-    float dx, dy, dz;
+    float cam_front_x, cam_front_y, cam_front_z;
 
     // todo: figure out how this works
-    get_sight_vector(rx, ry, &dx, &dy, &dz);
+    get_sight_vector(rx, ry, &cam_front_x, &cam_front_y, &cam_front_z);
     for (int i = 0; i < chunk_count; i++) {
         Chunk *chunk = chunks + i;
         if (chunk_distance(chunk, p, q) > 1) {
             continue;
         }
-        int hx, hy, hz;
-        int hw = _hit_test(&chunk->map, 8, previous,
-                           char_x, char_y, char_z, dx, dy, dz, &hx, &hy, &hz);
-        if (hw > 0) {
-            float d = sqrtf(
-                    powf(hx - char_x, 2) + powf(hy - char_y, 2) + powf(hz - char_z, 2));
-            if (best == 0 || d < best) {
-                best = d;
-                *bx = hx; *by = hy; *bz = hz;
-                result = hw;
+        int hit_x, hit_y, hit_z;
+        int block_type = _hit_test(&chunk->map, 8, previous,
+                                   char_x, char_y, char_z, cam_front_x, cam_front_y, cam_front_z, &hit_x, &hit_y, &hit_z);
+        if (block_type > 0) {
+            float distance = sqrtf(
+                    powf(hit_x - char_x, 2) + powf(hit_y - char_y, 2) + powf(hit_z - char_z, 2));
+            if (best == 0 || distance < best) {
+                best = distance;
+                *best_x = hit_x; *best_y = hit_y; *best_z = hit_z;
+                result = block_type;
             }
         }
     }
@@ -557,7 +557,7 @@ void make_single_cube(
 //            texture_data,
 //            1, 1, 1, 1, 1, 1,
 //            0, 0, 0, 0.5, w);
-    josephs_cube(
+    make_cube_faces(
             vertices_data,
             normal_data,
             texture_data,
@@ -701,7 +701,7 @@ void update_chunk(Chunk *chunk) {
                            f1, f2, f3, f4, f5, f6,
                            e->x, e->y, e->z,  e->w);
                 }
-                josephs_cube(
+                make_cube_faces(
                         vertices_data + position_offset,
                         normal_data + position_offset,
                         texture_data + uv_offset,
@@ -966,10 +966,10 @@ int main(int argc, char **argv) {
         return -1;
     }
     create_window();
-    if (!window) {
-        glfwTerminate();
-        return -1;
-    }
+//    if (!window) {
+//        glfwTerminate();
+//        return -1;
+//    }
     glfwMakeContextCurrent(window);
     glfwSwapInterval(VSYNC);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
